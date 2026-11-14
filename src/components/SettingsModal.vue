@@ -15,9 +15,9 @@ import {
   Car,
   RefreshCw,
   Home,
-  SlidersHorizontal,
-  Link2,
-  AlertCircle,
+  Sparkles,
+  Pin,
+  Lock
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -71,6 +71,47 @@ const handleToggleMock = () => {
 const handleSaveHaConfig = () => {
   ha.setConfig(localHaUrl.value, localHaToken.value);
 };
+
+const toggleRoomSync = () => {
+  ha.setRoomSyncConfig({ enabled: !ha.roomSyncConfig.enabled });
+};
+
+const toggleTargetEntity = (id: string) => {
+  const current = [...ha.roomSyncConfig.targetEntityIds];
+  const idx = current.indexOf(id);
+  if (idx >= 0) {
+    current.splice(idx, 1);
+  } else {
+    current.push(id);
+  }
+  ha.setRoomSyncConfig({ targetEntityIds: current });
+};
+
+const togglePinnedEntity = (id: string) => {
+  const current = [...ha.pinnedEntityIds];
+  const idx = current.indexOf(id);
+  if (idx >= 0) {
+    current.splice(idx, 1);
+  } else {
+    current.push(id);
+  }
+  ha.setPinnedEntities(current);
+};
+
+const deskPin = ref(localStorage.getItem('arcdock_desk_pin') || '0000');
+const pinSaved = ref(false);
+
+const saveDeskPin = () => {
+  const clean = deskPin.value.trim().slice(0, 4);
+  if (clean.length === 4) {
+    localStorage.setItem('arcdock_desk_pin', clean);
+    deskPin.value = clean;
+    pinSaved.value = true;
+    setTimeout(() => {
+      pinSaved.value = false;
+    }, 2000);
+  }
+};
 </script>
 
 <template>
@@ -81,20 +122,20 @@ const handleSaveHaConfig = () => {
       <div class="flex items-center gap-3">
         <button
           @click="emit('close')"
-          class="p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-300 hover:text-white"
+          class="p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-300 hover:text-white cursor-pointer"
           title="Back"
         >
           <ArrowLeft class="w-5 h-5" />
         </button>
         <div>
           <h2 class="text-base sm:text-lg font-bold text-white leading-tight">Settings</h2>
-          <p class="text-[11px] text-neutral-400">ArcDock System Configuration</p>
+          <p class="text-[11px] text-neutral-400">ArcDock System & Hardware Configuration</p>
         </div>
       </div>
 
       <button
         @click="emit('close')"
-        class="p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-400 hover:text-white"
+        class="p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-400 hover:text-white cursor-pointer"
         title="Close"
       >
         <X class="w-5 h-5" />
@@ -139,105 +180,34 @@ const handleSaveHaConfig = () => {
             </div>
           </button>
         </div>
-      </section>
 
-      <!-- Home Assistant IoT Configuration -->
-      <section class="space-y-3 pt-4 border-t border-white/10">
-        <div class="flex items-center justify-between">
-          <label class="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-2">
-            <Home class="w-4 h-4 text-amber-400" /> Home Assistant
-          </label>
-
-          <span
-            v-if="ha.isMockMode"
-            class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30"
-          >
-            Mock Engine (Safe)
-          </span>
-          <span
-            v-else-if="ha.connectionStatus === 'connected'"
-            class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/30"
-          >
-            Connected
-          </span>
-          <span
-            v-else-if="ha.connectionStatus === 'connecting'"
-            class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/30"
-          >
-            Connecting...
-          </span>
-          <span
-            v-else
-            class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400"
-          >
-            Disconnected
-          </span>
-        </div>
-
-        <!-- Mock Mode Toggle Card -->
+        <!-- Car Kiosk Lock PIN Configuration -->
         <div class="p-3.5 rounded-2xl bg-neutral-900 border border-white/5 flex items-center justify-between gap-3">
           <div class="space-y-0.5">
-            <div class="text-sm font-semibold text-white flex items-center gap-2">
-              <SlidersHorizontal class="w-4 h-4 text-amber-400" />
-              <span>Use Mock Engine</span>
+            <div class="text-xs font-bold text-white flex items-center gap-1.5">
+              <Lock class="w-3.5 h-3.5 text-amber-400" />
+              <span>Desk Mode Lock PIN</span>
             </div>
-            <p class="text-xs text-neutral-400">
-              Simulates desk lights, scenes, and switches locally with zero system or network installation.
-            </p>
+            <div class="text-[11px] text-neutral-400">
+              Required to exit Car Mode back into Desk Mode (Default: 0000).
+            </div>
           </div>
-          <button
-            @click="handleToggleMock"
-            class="w-12 h-6.5 rounded-full p-0.5 transition-colors duration-200 ease-in-out shrink-0 focus:outline-none cursor-pointer"
-            :class="localMockMode ? 'bg-amber-400' : 'bg-neutral-800 border border-white/10'"
-            role="switch"
-            :aria-checked="localMockMode"
-          >
-            <span
-              class="block w-5.5 h-5.5 rounded-full bg-black shadow-md transform transition duration-200 ease-in-out"
-              :class="localMockMode ? 'translate-x-5 bg-black' : 'translate-x-0 bg-neutral-400'"
+
+          <div class="flex items-center gap-2 shrink-0">
+            <input
+              v-model="deskPin"
+              type="password"
+              maxlength="4"
+              placeholder="0000"
+              class="w-20 bg-black/60 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white text-center tracking-widest font-mono focus:outline-none focus:border-amber-400"
             />
-          </button>
-        </div>
-
-        <!-- Live Connection Inputs -->
-        <div v-if="!localMockMode" class="space-y-3 p-3.5 rounded-2xl bg-neutral-900 border border-white/5">
-          <div class="space-y-1.5">
-            <label class="text-xs text-neutral-400 font-medium">Home Assistant URL</label>
-            <div class="relative">
-              <Link2 class="w-4 h-4 text-neutral-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                v-model="localHaUrl"
-                type="text"
-                placeholder="http://127.0.0.1:8123 or http://homeassistant.local:8123"
-                class="w-full bg-black border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-amber-400 transition-colors font-mono"
-              />
-            </div>
+            <button
+              @click="saveDeskPin"
+              class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs active:scale-95 cursor-pointer shadow-sm"
+            >
+              {{ pinSaved ? 'Saved!' : 'Save' }}
+            </button>
           </div>
-
-          <div class="space-y-1.5">
-            <label class="text-xs text-neutral-400 font-medium">Long-Lived Access Token</label>
-            <div class="relative">
-              <Key class="w-4 h-4 text-neutral-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                v-model="localHaToken"
-                type="password"
-                placeholder="Bearer token from your HA Profile"
-                class="w-full bg-black border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-amber-400 transition-colors font-mono"
-              />
-            </div>
-          </div>
-
-          <div v-if="ha.errorMessage" class="flex items-center gap-2 text-xs text-rose-400 pt-1">
-            <AlertCircle class="w-4 h-4 shrink-0" />
-            <span>{{ ha.errorMessage }}</span>
-          </div>
-
-          <button
-            @click="handleSaveHaConfig"
-            class="w-full py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs tracking-wide active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            Connect WebSocket
-          </button>
         </div>
       </section>
 
@@ -332,6 +302,176 @@ const handleSaveHaConfig = () => {
               <LogOut class="w-4 h-4" /> Disconnect
             </button>
           </template>
+        </div>
+      </section>
+
+      <!-- Home Assistant Connection -->
+      <section class="space-y-3 pt-4 border-t border-white/10">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-2">
+            <Home class="w-4 h-4 text-amber-400" /> Home Assistant Kiosk Integration
+          </label>
+          <span
+            v-if="ha.isMockMode"
+            class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30"
+          >
+            Mock Mode (Simulation)
+          </span>
+          <span
+            v-else-if="ha.connectionStatus === 'connected'"
+            class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/30"
+          >
+            Connected
+          </span>
+          <span
+            v-else-if="ha.connectionStatus === 'connecting'"
+            class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sky-400/20 text-sky-300 border border-sky-400/30"
+          >
+            Connecting...
+          </span>
+          <span
+            v-else
+            class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-400"
+          >
+            Disconnected
+          </span>
+        </div>
+
+        <!-- Mock Mode Toggle Banner -->
+        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-white/5 flex items-center justify-between">
+          <div class="space-y-0.5">
+            <div class="text-xs font-bold text-white">Enable Mock Mode</div>
+            <div class="text-[11px] text-neutral-400">
+              Simulates real-time light brightness, scene switching & AC thermostat without live HA.
+            </div>
+          </div>
+          <button
+            @click="handleToggleMock"
+            class="w-10 h-6 rounded-full transition-colors relative cursor-pointer"
+            :class="localMockMode ? 'bg-amber-400' : 'bg-white/10'"
+          >
+            <div
+              class="w-4 h-4 rounded-full bg-black absolute top-1 transition-transform"
+              :class="localMockMode ? 'left-5' : 'left-1'"
+            />
+          </button>
+        </div>
+
+        <!-- HA Connection Details (shown when not in Mock Mode) -->
+        <div v-if="!localMockMode" class="space-y-3">
+          <div class="space-y-1">
+            <label class="text-xs text-neutral-400 font-medium">Home Assistant URL</label>
+            <input
+              v-model="localHaUrl"
+              type="text"
+              placeholder="http://127.0.0.1:8123 or http://homeassistant.local:8123"
+              class="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-amber-400 font-mono"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs text-neutral-400 font-medium">Long-Lived Access Token</label>
+            <input
+              v-model="localHaToken"
+              type="password"
+              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              class="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-amber-400 font-mono"
+            />
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <span class="text-[11px] text-neutral-400">
+              Create token in Home Assistant: Profile → Long-Lived Access Tokens.
+            </span>
+            <button
+              @click="handleSaveHaConfig"
+              class="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs tracking-wide active:scale-95 transition-all cursor-pointer"
+            >
+              Save & Connect
+            </button>
+          </div>
+        </div>
+
+        <!-- Room Immersion: Dynamic Album Art Light Sync -->
+        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-white/5 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="space-y-0.5">
+              <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                <Sparkles class="w-3.5 h-3.5 text-amber-400" />
+                <span>Sync Room Lights to Album Art</span>
+              </div>
+              <div class="text-[11px] text-neutral-400">
+                Colors change with song artwork. <span class="text-amber-300/90 font-medium">Only affects lights that are already ON.</span>
+              </div>
+            </div>
+            <button
+              @click="toggleRoomSync"
+              class="w-10 h-6 rounded-full transition-colors relative cursor-pointer"
+              :class="ha.roomSyncConfig.enabled ? 'bg-amber-400' : 'bg-white/10'"
+            >
+              <div
+                class="w-4 h-4 rounded-full bg-black absolute top-1 transition-transform"
+                :class="ha.roomSyncConfig.enabled ? 'left-5' : 'left-1'"
+              />
+            </button>
+          </div>
+
+          <!-- Target Lights Multi-Select when enabled -->
+          <div v-if="ha.roomSyncConfig.enabled" class="pt-2 border-t border-white/5 space-y-2">
+            <span class="text-[10px] uppercase font-bold text-neutral-400">Target Lights</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              <button
+                v-for="light in ha.lights"
+                :key="light.entity_id"
+                @click="toggleTargetEntity(light.entity_id)"
+                class="px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center justify-between text-left transition-all active:scale-98 cursor-pointer"
+                :class="[
+                  ha.roomSyncConfig.targetEntityIds.includes(light.entity_id)
+                    ? 'bg-amber-400/20 border-amber-400/50 text-amber-300'
+                    : 'bg-white/5 border-white/5 text-neutral-400 hover:text-white'
+                ]"
+              >
+                <span class="truncate">{{ light.attributes.friendly_name || light.entity_id }}</span>
+                <Check
+                  v-if="ha.roomSyncConfig.targetEntityIds.includes(light.entity_id)"
+                  class="w-3.5 h-3.5 text-amber-400 shrink-0 ml-1"
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pinned Primary Desk Entities -->
+        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-white/5 space-y-3">
+          <div class="space-y-0.5">
+            <div class="text-xs font-bold text-white flex items-center gap-1.5">
+              <Pin class="w-3.5 h-3.5 text-amber-400" />
+              <span>Pinned Desk Entities</span>
+            </div>
+            <div class="text-[11px] text-neutral-400">
+              Select specific devices to feature on your primary grid (leave empty to show all).
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+            <button
+              v-for="e in [...ha.climates, ...ha.lights, ...ha.switches]"
+              :key="e.entity_id"
+              @click="togglePinnedEntity(e.entity_id)"
+              class="px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center justify-between text-left transition-all active:scale-98 cursor-pointer"
+              :class="[
+                ha.pinnedEntityIds.includes(e.entity_id)
+                  ? 'bg-amber-400/20 border-amber-400/50 text-amber-300 font-bold'
+                  : 'bg-white/5 border-white/5 text-neutral-400 hover:text-white'
+              ]"
+            >
+              <span class="truncate">{{ e.attributes.friendly_name || e.entity_id }}</span>
+              <Check
+                v-if="ha.pinnedEntityIds.includes(e.entity_id)"
+                class="w-3.5 h-3.5 text-amber-400 shrink-0 ml-1"
+              />
+            </button>
+          </div>
         </div>
       </section>
     </main>

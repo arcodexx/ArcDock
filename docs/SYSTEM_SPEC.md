@@ -44,7 +44,7 @@ Any agent or developer working on ArcDock **must adhere to these fundamental arc
 
 ---
 
-## 3. Operational Profiles
+## 3. Operational Profiles & Car Mode Kiosk Security
 
 ArcDock features two distinct operational states toggled via the Top Bar or Settings:
 
@@ -56,13 +56,34 @@ ArcDock features two distinct operational states toggled via the Top Bar or Sett
                     │                                │
             [ DESK MODE ]                      [ CAR MODE ]
                     │                                │
-   • Home Wi-Fi (192.168.x.x)        • Mobile Hotspot / Portable
-   • Spotify Remote (Mac/Speakers)   • Spotify Remote (Phone -> Car BT)
+   • Home Wi-Fi (192.168.x.x)        • Mobile Hotspot / Portable Bluetooth
+   • Spotify Remote (Mac/Speakers)   • Pure Automotive Spotify Remote
    • Home Assistant Core ACTIVE      • Home Assistant Core SUSPENDED
      (Local on-device daemon/Docker)   (Reclaims ~500MB-1GB RAM, 0% CPU)
-   • Always-on Ambient UI            • Large glanceable controls
-   • Wall USB-C Power (60-80%)       • Battery / 12V Charger
+   • Always-on Ambient UI            • Large glanceable controls only
+   • Dual-State Split Grid           • SplitPane locked to 100% Left Pane
+   • Wall USB-C Power (60-80%)       • 12V Car Charger / Battery
+   • Full Developer & IoT Widgets    • 100% Strict Personal Data Isolation
+   • Settings & Controls Unlocked    • Secured with 4-Digit Exit PIN Lock
 ```
+
+### Car Mode Privacy & Strict Kiosk Security Isolation
+
+#### 1. Real-World Driving Rationale: The "Backseat Jukebox" & Passenger Remote
+When driving with others, the driver's primary phone is typically busy running GPS navigation (Google Maps / Waze) or connected to the car:
+- Handing your main phone to passengers to pick music isn't always your first choice.
+- In-car infotainment screens restrict typing and searching while driving, and passengers in the back seat can't reach them anyway.
+ArcDock in **Car Mode** serves as a handy passenger remote. Anyone in the car can search songs and queue tracks to the car's speakers via Spotify Connect without touching the driver's phone or interrupting navigation, while personal desk data stays locked behind a PIN.
+
+#### 2. Security & Privacy Guarantees
+1. **Zero Personal Data Exposure:**
+   - In Car Mode, whether playback is **active or paused**, the display strictly renders the Spotify music player (`NowPlaying.vue` and `MediaBar.vue`).
+   - Under no circumstances does Car Mode render personal work or logistics widgets (no GitHub commit streaks, no domestic parcel tracking, no smart home controls, and no system settings).
+2. **Hidden System Controls:**
+   - The Settings button, Weather station pill, Network latency ping badge, and top-down Control Center grab handles are completely suppressed and hidden in `TopBar.vue` when `mode === 'car'`.
+3. **4-Digit PIN Lock Protection:**
+   - To prevent passengers, valets, or unauthorized users from switching the device back to Desk Mode and accessing personal home IoT or work information, exiting Car Mode requires entering a 4-digit PIN via a touch keypad modal (`z-[100]`) with error shake animation.
+   - Configurable in `SettingsModal.vue` (`arcdock_desk_pin`, default: `0000`).
 
 ---
 
@@ -242,6 +263,158 @@ This enables zero-latency, 100% reliable terminal access (`ssh u0_a...@localhost
   2. Do NOT tap "Add account and device" again in Developer Options (doing so resets the timer back to 168 hours).
   3. Do NOT factory reset the phone.
   4. The physical SIM card CAN safely be removed after initial authorization; the timer is maintained server-side.
+
+---
+
+### Subsystem 5: Desk Control Center & Dynamic Standby Work Hub (Phase 4)
+
+#### 1. Architectural Philosophy: The Landscape Mobile Ergonomic Challenge
+A smartphone in landscape mode offers a wide canvas (~2400px physical / ~800–900px CSS) but a strictly constrained vertical height (~360–390 CSS pixels). 
+Stacking 4–6 separate dashboard cards vertically on the right half creates microscopic typography and impossible touch targets. Furthermore, while music plays, nobody toggles light switches constantly; but when music is paused, leaving 50% of the screen as a static player or clock wastes valuable AMOLED real estate.
+
+ArcDock resolves this with a **Dual-State Dynamic Canvas** and a **Top-Down Control Center Drawer**:
+
+```
+[ STATE 1: SPOTIFY PLAYING ]
+┌──────────────────────────────────────────────┬──────────────────────────────────────────────┐
+│                                              │ ⭐ PINNED FAVORITE WIDGETS (Up to 2 Cards)  │
+│               SPOTIFY REMOTE                 │  [ ⭐ Favorites (2/2) ]      [ ⋯ All Widgets ]│
+│           (Full Vibrant Immersion)           ├──────────────────────────────────────────────┤
+│                                              │ 1. FAVORITE WIDGET #1 (e.g. SmartThings AC)  │
+│   • Dynamic ColorThief ambient backdrop      │    [ − ] [ 24.0°C ] [ + ]                    │
+│   • Scoped top MediaBar (Playlists/Queue)    │    [ ⏻ Power ] [ ❄️ Cool ▾ ] [ 💨 Auto ▾ ]    │
+│   • NowPlaying: Album art, seeker, lyrics    ├──────────────────────────────────────────────┤
+│   • Instant library toggle (+ / ✓)           │ 2. FAVORITE WIDGET #2 (e.g. Desk Lights)     │
+│                                              │    [ Focus ] [ Relax ] [ Night ] quick scenes │
+│                                              │    Desk Lamp & Ambient Strip slider tiles     │
+└──────────────────────────────────────────────┴──────────────────────────────────────────────┘
+
+[ STATE 2: SPOTIFY PAUSED / IDLE (STANDBY WORK & HOME DOCK) ]
+┌──────────────────────────────────────────────┬──────────────────────────────────────────────┐
+│       LEFT PANE: WORK & LOGISTICS HUB        │     RIGHT PANE: SMART DESK IOT ENVIRONMENT   │
+│                                              │                                              │
+│  🐙 GITHUB ACTIVITY                          │  ❄️ SMARTTHINGS AC CLIMATE                   │
+│  • X commits today • Y-day streak            │  • Room Temp readout: 26.5°C                 │
+│  • Pull requests awaiting review list        │  • Stepper [ − ] [ 24.0°C ] [ + ]            │
+│  • 14-day contribution heatmap ribbon        │  • Downward Dropdowns: [ ❄️ Cool ▾ ] [ 💨 Auto ▾]│
+│                                              │                                              │
+│  📦 ACTIVE PARCEL DELIVERIES                 │  💡 DESK LIGHTS & SWITCHES                   │
+│  • Multi-carrier milestone progress bar      │  • WiZ desk lamp, screen bar, GoHigh strip   │
+│  • Latest hub scan checkpoint & ETA          │  • Quick scenes: Focus, Relax, Night         │
+│                                              ├──────────────────────────────────────────────┤
+│  ▶ Resume: Bohemian Rhapsody — Queen         │  ⏻ All Lights Off quick trigger              │
+└──────────────────────────────────────────────┴──────────────────────────────────────────────┘
+```
+
+#### 2. The Pinned Favorite Widgets System (`useFavoritesStore`)
+* **Core Rule:** Users can pin **up to 2 favorite widgets** (`climate`, `lights`, `github`, `deliveries`, `weather`, `network`) to feature on the right pane while Spotify is actively playing.
+* **Storage & Limit Enforcement:** Persisted in `localStorage['arcdock_favorite_widgets']` (default: `['climate', 'lights']`). Enforces a strict ceiling of 2 favorites; attempting to mark a 3rd displays an alert: *"Maximum 2 favorites reached. Unmark one first!"*.
+* **Easy In-Context Pinning:**
+  - In `FullScreenView.vue`: Header features a prominent `[ ⭐ Favorite (X/2) ]` toggle button.
+  - In `ControlCenterDrawer.vue`: Every widget card features a star pin icon in the corner.
+* **Zero Duplication on Standby:** When Spotify is paused, the right pane strictly renders Smart Desk environment controls (`DeskIoTPanel.vue`), complementing the left pane's work hub (`StandbyWorkHub.vue`) without any overlapping or duplicate cards.
+
+#### 3. The Top-to-Down "Desk Control Center" Drawer
+* **The Gesture:** Swiping down from anywhere on the Top Bar (or tapping a discreet central pull pill `━`) slides down a full-width pitch-black AMOLED drawer (`z-[90]`).
+* **The Launcher Grid:** Displays a 6-card glanceable grid with star favorite toggles:
+  1. `[ 🌦️ Weather Station ]`
+  2. `[ 🐙 GitHub Activity & PRs ]`
+  3. `[ 📦 Indian Parcel Tracker ]`
+  4. `[ ❄️ SmartThings Climate AC ]`
+  5. `[ 💡 All Lights & Scenes ]`
+  6. `[ 📶 Network Latency Monitor ]`
+* **Full-Screen View Pattern (`z-[100]`):** Tapping any card in the Control Center expands into a dedicated, unconstrained full-screen view (`fixed inset-0 w-screen h-screen bg-black`). Features a native mobile top bar (Back chevron `←`, Title, `[ ⭐ Favorite (X/2) ]`, and Close `×`).
+
+#### 4. Contextual In-Widget Settings Architecture
+Rather than cramming API keys and city searches into a distant centralized settings modal, each widget directly manages its own configuration in context inside its Full-Screen view:
+* **Weather Station (`WeatherView.vue`):** Features a `[ ⚙️ Location ]` button in the header. Houses live Open-Meteo city search (Enter/Search triggers), matching locations list with coordinates, and GPS auto-location toggle. Selecting a city reloads the forecast on screen instantly.
+* **GitHub Activity Hub (`GitHubView.vue`):** Features a `[ ⚙️ Account Credentials ]` button in the header to update username and personal access token with instant sync.
+* **Domestic Courier Tracker (`DeliveryView.vue`):** Features a `[ ⚙️ Carrier API ]` button in the header alongside `[ + Track Package ]` to configure optional live tracking API keys (17TRACK/Ship24).
+* **Main Settings (`SettingsModal.vue`):** Freed up completely from widget clutter to focus strictly on system and hardware setup (Desk/Car profile, Lock PIN, Spotify PKCE, and Home Assistant Core connection).
+
+#### 5. Feature Specifications
+
+##### Feature A: Dynamic Album Art Room-Sync (WiZ Bulbs & GoHigh Light Bars)
+* **Objective:** Extend Spotify's dynamic visual immersion from the phone screen into the physical room.
+* **Logic & Safety Rule:**
+  * When Spotify track metadata changes, ArcDock retrieves the extracted dominant RGB palette from `useSpotifyStore`.
+  * **The Inviolable "Only If ON" Rule:** ArcDock queries `useHomeAssistantStore` for the target lights (`light.wiz_desk_lamp`, `light.gohigh_light_bars`). 
+  * If the light state is `off`, **do nothing** (strictly prevents room lights from unexpectedly turning on during bright daylight).
+  * If the light state is `on`, calls Home Assistant:
+    `callService('light', 'turn_on', { entity_id: targetEntities, rgb_color: [r, g, b], transition: 2 })`
+* **Configuration:** Toggle switch in Settings: *"Sync Room Lights to Album Art"* with target entity multi-select.
+
+##### Feature B: Streamlined SmartThings Climate & AC Control Card (`ClimateCard.vue`)
+* **Objective:** Direct touch control over room air conditioner integrated via Home Assistant SmartThings integration.
+* **Entity Type:** `climate.*` (e.g., `climate.bedroom_ac`).
+* **Ergonomic Touch Controls:**
+  * Current room temperature readout in header.
+  * Target setpoint stepper: large `-` and `+` increment buttons with `24.0 °C` display (redundant "Target Setpoint" text removed).
+  * Dedicated Power button (On/Off).
+  * Mode dropdown pill (`[ ❄️ Cool ▾ ]` or `[ ✨ Auto ▾ ]`): Exclusively lists active operational modes (`Auto`, `Cool`, `Dry`, `Fan Only`, `Heat` — excluding redundant 'off'). Opens downwards (`top-full mt-1.5`) with compact bounds and frosted backdrop blur.
+  * Fan speed dropdown pill (`[ 💨 Auto ▾ ]`): Opens downwards to select fan speed (`Auto`, `Low`, `Medium`, `High`).
+  * Click-outside auto-dismissal.
+
+##### Feature C: Desk Weather System (Open-Meteo REST Client)
+* **Objective:** Real-time glanceable weather for desk planning with zero API keys or billing accounts.
+* **API Engine:** Open-Meteo free API with dynamic geocoding city search (`https://geocoding-api.open-meteo.com/v1/search?name=...`) and forecast endpoints.
+* **Refresh Rate:** Cached in `localStorage` and polled every 30 minutes.
+* **Components:**
+  * **Glanceable Header Pill:** Temp + weather icon (`28°C ⛅`) next to digital clock.
+  * **Full-Screen Weather Station:** Displays current condition, feels-like temperature, humidity %, wind speed, 24-hour horizontal hourly curve, and 7-day Min/Max forecast, with contextual `[ ⚙️ Location ]` search drawer.
+  * **Full-Screen Weather Station:** Displays current condition, feels-like temperature, humidity %, wind speed, 24-hour horizontal hourly curve, and 7-day Min/Max forecast.
+
+##### Feature D: Network Latency Monitor (`PingMonitor.vue`)
+* **Objective:** Visual early warning for network instability 5–10 seconds before video calls freeze or streams drop.
+* **Mechanism:** Periodic lightweight fetch timing to `1.1.1.1` (or local gateway DNS) every 10 seconds.
+* **Visual States:**
+  * `🟢 Stable (< 50ms)`: Green dot with subtle sparkline.
+  * `🟡 Elevated (50–120ms)`: Amber warning badge.
+  * `🔴 Critical / Packet Loss (> 120ms or Timeout)`: Red pulsing indicator with latency readout (`185ms ⚠️`).
+
+##### Feature E: GitHub Activity Hub
+* **Objective:** Daily developer motivation and PR workflow tracking with pixel-accurate contribution metrics.
+* **Architecture & Authentication:**
+  * **Dual-Mode Precision Engine:**
+    * **Authenticated Mode (Token provided):** Directly queries official GitHub GraphQL `contributionCalendar` (`viewer { contributionsCollection { contributionCalendar { ... } } }`) ensuring 100% exact parity with github.com profile.
+    * **Public Unauthenticated Mode (Username only):** Uses the public `https://github-contributions-api.jogruber.de/v4/{username}` endpoint to retrieve exact historical daily contribution counts.
+  * **Key Metrics:**
+    * **Daily Contribution Streak:** Visual 14-day interactive contribution heatmap with exact day names, tooltips, and calculated active streak (`🔥 X days`).
+    * **Today's Commit Counter:** Number of commits pushed today across repositories.
+    * **User Profile Banner:** Avatar, bio, followers count, and public repository count.
+    * **Top Repositories Grid:** Pinned/active repositories with language color dots, stars count, and descriptions.
+    * **Pending Pull Requests Badge:** List of open PRs with branches and review statuses.
+
+##### Feature F: Live Domestic Parcel Tracker (`DeliveryView.vue`)
+* **Objective:** Real-time Indian domestic package delivery tracking with zero required API keys or subscription fees.
+* **Powered By:** Open-source **ShipTrack** by Aswin (`https://shiptrack.aswincloud.com`).
+* **Supported Carriers:** Dynamically fetched from `/api/carriers` (Delhivery, Blue Dart, DTDC, India Post Speed Post, Ekart, Xpressbees, Shadowfax, Amazon Shipping, etc.).
+* **API Bridge & Same-Origin Architecture:**
+  * To bypass browser CORS constraints without third-party proxy privacy risks, the Vite development server provides an internal outbound bridge (`shiptrack-dev-bridge` in `vite.config.ts`):
+    * `GET /api/carriers` ➔ `https://shiptrack.aswincloud.com/api/carriers`
+    * `GET /api/track/:carrier/:trackingNumber` ➔ `https://shiptrack.aswincloud.com/api/track/:carrier/:trackingNumber`
+  * In production kiosk environments, this can be served via standard nginx/Caddy reverse proxy rules.
+* **Response Schema Mapping:**
+  ```json
+  {
+    "carrier": "delhivery",
+    "trackingNumber": "420791991534",
+    "status": "delivered",
+    "estimatedDelivery": "14 Nov 2026, Afternoon",
+    "destination": "Jodhpur",
+    "events": [
+      { "date": "...", "location": "...", "description": "..." }
+    ],
+    "fetchedAt": "2026-11-14T20:21:57.213Z"
+  }
+  ```
+* **User Flow & Controls:**
+  * Tap `+ Track Package` in Delivery View.
+  * Select Courier from live-loaded list + Enter AWB / Tracking Number.
+  * Card immediately switches to active connecting loader state (`parcel.isLoading: true`).
+  * On response, checkpoints timeline (`events`), destination badge, estimated delivery pill, and status milestone are stored in `localStorage`.
+  * **Manual Sync Buttons:** Every parcel card in `StandbyWorkHub.vue`, `FavoriteWidgetsPanel.vue`, `WidgetCardContainer.vue`, and `DeliveryView.vue` includes a manual `[ 🔄 ]` sync button to refresh that package on demand without polling spam.
+  * Direct deep-link: `[ Track on <Courier> ]` opens the official carrier portal.
 
 ---
 

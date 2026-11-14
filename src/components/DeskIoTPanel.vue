@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useHomeAssistantStore } from '@/stores/homeAssistant';
 import LightCard from './cards/LightCard.vue';
 import SwitchCard from './cards/SwitchCard.vue';
+import ClimateCard from './cards/ClimateCard.vue';
 import { 
   ChevronRight, 
   ChevronDown,
@@ -22,6 +23,21 @@ const ha = useHomeAssistantStore();
 const isSceneDropdownOpen = ref(false);
 const dropdownRef = ref<HTMLElement | null>(null);
 
+const displayedClimates = computed(() => {
+  if (ha.pinnedEntityIds.length === 0) return ha.climates;
+  return ha.climates.filter((c) => ha.pinnedEntityIds.includes(c.entity_id));
+});
+
+const displayedLights = computed(() => {
+  if (ha.pinnedEntityIds.length === 0) return ha.lights;
+  return ha.lights.filter((l) => ha.pinnedEntityIds.includes(l.entity_id));
+});
+
+const displayedSwitches = computed(() => {
+  if (ha.pinnedEntityIds.length === 0) return ha.switches;
+  return ha.switches.filter((s) => ha.pinnedEntityIds.includes(s.entity_id));
+});
+
 const scenesList = [
   { id: 'scene.focus', name: 'Focus', icon: Zap, color: 'text-amber-400' },
   { id: 'scene.relax', name: 'Relax & Warm', icon: Coffee, color: 'text-orange-400' },
@@ -38,6 +54,18 @@ const handleSetBrightness = (id: string, percent: number) => {
 
 const handleToggleSwitch = (id: string) => {
   ha.toggleSwitch(id);
+};
+
+const handleSetTemperature = (id: string, temp: number) => {
+  ha.setTemperature(id, temp);
+};
+
+const handleSetHvacMode = (id: string, mode: string) => {
+  ha.setHvacMode(id, mode);
+};
+
+const handleSetFanMode = (id: string, mode: string) => {
+  ha.setFanMode(id, mode);
 };
 
 const handleSelectScene = (sceneId: string) => {
@@ -64,17 +92,18 @@ onUnmounted(() => {
   <aside class="h-full w-full flex flex-col bg-neutral-950/90 border-l border-white/10 select-none overflow-hidden">
     <!-- Panel Header: Uncluttered Minimal Toolbar (Zero Redundant Title Text) -->
     <header class="px-2.5 py-1.5 border-b border-white/5 flex items-center justify-between shrink-0 bg-black/60 gap-1.5">
-      <!-- Left: Status Indicator (Mock / Live dot) -->
-      <div class="flex items-center gap-1.5 min-w-0">
+      <!-- Left: Smart Desk Label + Status Indicator -->
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="text-xs font-bold text-white tracking-wide">Smart Desk</span>
         <span
           v-if="ha.isMockMode"
-          class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-400/15 text-amber-300 border border-amber-400/25"
+          class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-400/15 text-amber-300 border border-amber-400/25 shrink-0"
         >
           Mock Mode
         </span>
         <span
           v-else-if="ha.connectionStatus === 'connected'"
-          class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-400/15 text-emerald-300 border border-emerald-400/25"
+          class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-400/15 text-emerald-300 border border-emerald-400/25 shrink-0"
         >
           Live
         </span>
@@ -142,12 +171,23 @@ onUnmounted(() => {
       </div>
     </header>
 
-    <!-- Scrollable Content Grid (Square Tiles) -->
+    <!-- Scrollable Content Grid (Square Tiles & Climate Card) -->
     <div class="flex-1 overflow-y-auto p-2 space-y-2 no-scrollbar">
       <div class="grid grid-cols-2 gap-2">
+        <!-- Climate / AC Units -->
+        <ClimateCard
+          v-for="climate in displayedClimates"
+          :key="climate.entity_id"
+          :entity="climate"
+          @set-temperature="handleSetTemperature"
+          @set-hvac-mode="handleSetHvacMode"
+          @set-fan-mode="handleSetFanMode"
+          class="col-span-2"
+        />
+
         <!-- Lights -->
         <LightCard
-          v-for="light in ha.lights"
+          v-for="light in displayedLights"
           :key="light.entity_id"
           :entity="light"
           @toggle="handleToggleLight"
@@ -156,7 +196,7 @@ onUnmounted(() => {
 
         <!-- Switches / Appliances -->
         <SwitchCard
-          v-for="sw in ha.switches"
+          v-for="sw in displayedSwitches"
           :key="sw.entity_id"
           :entity="sw"
           @toggle="handleToggleSwitch"

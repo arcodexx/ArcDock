@@ -1,0 +1,11 @@
+{
+  "name": "ArcDock",
+  "short_name": "ArcDock",
+  "description": "Dedicated Glass Remote & Desk Command Center",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": []
+}

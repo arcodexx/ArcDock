@@ -117,11 +117,86 @@
 
 ---
 
-## Phase 4: Intermediate Polish & Smart Device Enhancements (During 7-Day Wait)
-- [ ] **Climate & AC Control Card (`ClimateCard.vue`):** Dedicated touch-first tile for HVAC/Air Conditioner control (target temperature slider, Cool/Heat/Fan mode toggles) for SmartThings AC integration.
-- [ ] **Entity Favorites & Grid Customizer:** Entity selector in `SettingsModal.vue` allowing user to pin specific desk lights, switches, and AC units to the dashboard.
-- [ ] **PWA & Offline Service Worker:** Add `manifest.json` and service worker for clean fullscreen "Add to Home Screen" execution.
-- [ ] **macOS Companion Helper (Optional):** Lightweight local daemon bridging Mac system volume, lock, and mute controls to the dock.
-- [ ] macOS Notification & Calendar daemon (lightweight Go daemon bridging local notifications to dock toast via WebSocket).
-- [ ] Proximity sensor / double-tap wake gestures using Qualcomm hardware sensor HAL.
-- [ ] Local weather / ambient sensor dashboard widgets.
+## Phase 4: Intermediate Polish & Advanced Desk Hub (During 7-Day Wait) — [COMPLETED]
+
+### Step 4.1: Smart Room Immersion & Climate AC Integration — [COMPLETED]
+- [x] **Dynamic Album Art Room-Sync:**
+  - Build reactive watcher in `src/stores/spotify.ts` / composable bridging ColorThief palette to `useHomeAssistantStore`.
+  - **Inviolable Rule:** Query target entities (`light.wiz_desk_lamp`, `light.gohigh_light_bars`). Only dispatch `callService('light', 'turn_on', { rgb_color: [r, g, b], transition: 2 })` if the light is **already ON**. If light is OFF, skip dispatch.
+  - Add UI master toggle: *"Sync Room Lights to Album Art"* with target entity selector in `SettingsModal.vue`.
+- [x] **SmartThings Climate/AC Card (`src/components/cards/ClimateCard.vue`):**
+  - Connect to Home Assistant `climate.*` entity domain (e.g. `climate.bedroom_ac`).
+  - Displays current room temperature & active target setpoint.
+  - Large 44px thumb-friendly `+` / `−` increment buttons (0.5°C steps).
+  - Mode selector pills: `Cool`, `Fan Only`, `Dry`, `Off` mapped to `climate.set_hvac_mode`.
+  - Fan speed selector chips (`Auto`, `Low`, `Medium`, `High`).
+
+### Step 4.2: Top-Down "Desk Control Center" Drawer & Full-Screen Views — [COMPLETED]
+- [x] **Top-Down Drawer (`src/components/ControlCenterDrawer.vue`):**
+  - Swipe down anywhere along the Top Bar or tap central pill `━` to slide down drawer (`z-[90]`).
+  - Smooth hardware-accelerated CSS translate transition.
+  - 6-card touch launcher grid: `[ 🌦️ Weather ]`, `[ 🐙 GitHub ]`, `[ 📦 Deliveries ]`, `[ ❄️ Smart AC ]`, `[ 💡 Lights ]`, `[ 📶 Network ]`.
+  - Swipe up gesture or tap close bar to dismiss.
+- [x] **Full-Screen View Expansion Pattern (`z-[100]`):**
+  - Tapping any card in the Control Center expands into an unconstrained full-screen view (`fixed inset-0 w-screen h-screen bg-black`).
+  - Top navigation bar: Back button `←`, Title, and Close `×`.
+
+### Step 4.3: Dynamic Dual-State Layout Controller (Playing vs Paused Standby Hub) — [COMPLETED]
+- [x] **State 1: Active Playing State (`is_playing === true`):**
+  - Left Pane: Full Spotify Glass Remote with dynamic ColorThief ambient backdrop.
+  - Right Pane: Clean 2-row layout:
+    - Top Row (~65% height): Tabbed/Swipeable Widget card (`[🌦️ Weather] [🐙 GitHub] [📦 Packages]`).
+    - Bottom Row (~35% height): Quick Action Bar for Desk Light toggle & AC quick pill (`[ ❄️ 24°C Cool ]`).
+- [x] **State 2: Paused Work Hub State (`is_playing === false`):**
+  - Left Pane: Developer & Logistics Work Hub (GitHub Daily Streak + PR review request list, Active Parcel tracker milestone bar).
+  - Right Pane: Full Climate & Room Console (SmartThings AC touch controls, WiZ & GoHigh lighting tiles, ambient scenes).
+  - Bottom Pinned Bar: Persistent digital clock + `[ ▶ Resume: Track Name ]` music resumption pill.
+
+### Step 4.4: Desk Widgets Implementation — [COMPLETED]
+- [x] **4.4.1: Desk Weather System (`src/stores/weather.ts` & `src/components/views/WeatherView.vue`):**
+  - REST client for Open-Meteo free API (cached in `localStorage`, 30-min poll, no API keys).
+  - Current temperature (°C), weather icon (Clear, Overcast, Rain, Haze, etc.), humidity %, Min/Max.
+  - Full-screen view: 24-hour horizontal hourly forecast curve and 7-day outlook.
+- [x] **4.4.2: Network Latency Sparkline (`src/stores/network.ts` & `src/components/views/NetworkView.vue`):**
+  - Lightweight HTTP/WebSocket ping timing to `1.1.1.1` (or local gateway DNS) every 10s.
+  - Header badge: `24ms • 🟢 Stable`.
+  - Amber warning for 50–120ms; red pulsing alert for > 120ms or packet loss.
+- [x] **4.4.3: GitHub Activity Hub (`src/stores/github.ts` & `src/components/views/GitHubView.vue`):**
+  - Client-side GitHub REST API integration with Personal Access Token in `localStorage`.
+  - 14-day contribution square heatmap ribbon + current streak count (`🔥 18 days`).
+  - Today's commit counter.
+  - Pull request review requests counter (`review-requested:USER is:pr is:open`).
+  - Full-screen view: interactive list of PR titles, repo names, and author handles.
+- [x] **4.4.4: Indian Parcel Tracker (`src/stores/delivery.ts` & `src/components/views/DeliveryView.vue`):**
+  - "+ Track Package" modal with custom Tracking Number input.
+  - Indian Courier dropdown: *Delhivery, Blue Dart, DTDC, India Post (Speed Post), Ekart, Xpressbees, Shadowfax*.
+  - Multi-carrier REST tracking client (17TRACK / Ship24 API).
+  - 3-stage visual progress milestone bar (`Dispatched` ➔ `In Transit` ➔ `Out for Delivery` ➔ `Delivered`).
+  - Full-screen view: complete transit checkpoint scan history with timestamps.
+
+### Step 4.5: Entity Favorites & Grid Customizer — [COMPLETED]
+- [x] Add "Pinned Desk Entities" selector in `SettingsModal.vue`.
+- [x] Allow user to select specific lights, switches, and climate devices from HA to pin to the primary grid.
+- [x] Add `manifest.json` and service worker for clean fullscreen PWA execution.
+
+### Step 4.6: Ergonomic Screen Polish, Car Mode Kiosk Lock & In-Widget Contextual Settings — [COMPLETED]
+- [x] **Car Mode Privacy & Strict Kiosk Security Isolation:**
+  - Force `NowPlaying.vue` & `MediaBar.vue` in Car Mode at all times, whether playing or paused. Zero personal data exposure (no GitHub, no parcel milestones, no smart home controls).
+  - Completely suppress Settings button, Weather pill, Ping badge, and Control Center grab handles in `TopBar.vue` when `mode === 'car'`.
+  - Added 4-digit PIN unlock keypad dialog (`arcdock_desk_pin`, default: `0000`) required when switching from Car Mode back to Desk Mode.
+- [x] **Pinned Favorite Widgets System (`src/stores/favorites.ts`):**
+  - Built Pinia favorites store (`favoriteWidgets`, max 2 widgets limit, persisted in `localStorage['arcdock_favorite_widgets']`).
+  - Added `[ ⭐ Favorite (X/2) ]` toggle button to `FullScreenView.vue` and star pin buttons on all cards in `ControlCenterDrawer.vue`.
+  - Enforced max limit alert when user attempts to pin a 3rd widget.
+  - Built `FavoriteWidgetsPanel.vue` for the right pane during active playback, rendering the up to 2 pinned favorite widgets with quick 1-tap full-screen expanders.
+  - Zero duplication on standby: When paused, the left pane renders `StandbyWorkHub.vue` (GitHub & Parcels) while the right pane renders `DeskIoTPanel.vue` (Smart Desk Climate, Lights, Scenes).
+- [x] **Streamlined SmartThings AC Card (`src/components/cards/ClimateCard.vue`):**
+  - Removed redundant "Target Setpoint" text label beneath temperature numbers.
+  - Replaced crowded mode and fan button rows with clean, downward-opening popover dropdowns (`top-full mt-1.5`).
+  - Removed redundant `'off'` option from the Mode dropdown (active modes: `Auto`, `Cool`, `Dry`, `Fan Only`, `Heat`); dedicated Power button exclusively handles On/Off state.
+  - Connected `'auto'` HVAC mode with indigo accent and `Sparkles` icon.
+- [x] **Contextual In-Widget Settings Architecture:**
+  - Integrated Open-Meteo live geocoding city search (Enter/Search triggers, GPS auto-location toggle, live coordinates) directly inside `WeatherView.vue` (`[ ⚙️ Location ]`).
+  - Integrated GitHub username and Personal Access Token configuration directly inside `GitHubView.vue` (`[ ⚙️ Account Credentials ]`).
+  - Integrated live carrier tracking API key directly inside `DeliveryView.vue` (`[ ⚙️ Carrier API ]`).
+  - Decluttered `SettingsModal.vue` to focus 100% on core system and hardware setup (Profiles, Lock PIN, Spotify PKCE, Home Assistant connection).

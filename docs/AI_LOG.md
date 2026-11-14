@@ -4,6 +4,267 @@ This log tracks all architectural discussions, technical decisions, completed st
 
 ---
 
+## Log Entry: 2026-11-15 (Entry 22)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Auxiliary Widget Live Verification, GitHub Dual-Mode Heatmap, ShipTrack Free Parcel Tracking & Per-Track Manual Sync Architecture
+
+### 1. User Requests & Context
+1. **TopBar Weather Pill Routing:** TopBar weather pill was inadvertently opening the generic widget drawer instead of the full Weather Station (`WeatherView.vue`).
+2. **GitHub Data Accuracy & Rich Profile:** GitHub data pulled from the user account was inaccurate (14-day heatmap did not match github.com profile due to REST `/events` limitations); user requested accurate metrics, developer profile information, top repositories, and PRs.
+3. **Free & Zero-Token Indian Domestic Courier Tracker:** Replace paid commercial APIs (17TRACK, Ship24) and all mock/simulated data with the open-source [Aswincloud/shiptrack](https://github.com/Aswincloud/shiptrack) API (`https://shiptrack.aswincloud.com`).
+4. **Manual Sync Controls:** Eliminate automated background polling; provide manual `[ 🔄 ]` sync controls on every parcel card in both the main view (`StandbyWorkHub`, `FavoriteWidgetsPanel`, `WidgetCardContainer`) and full widget view (`DeliveryView`).
+
+### 2. Architectural Changes & Implementations
+
+1. **TopBar Direct Full-Screen View Routing:**
+   - In `src/components/TopBar.vue`, updated the Weather pill click handler to emit `openFullScreen('weather')` directly, bypassing the Control Center drawer.
+   - Updated the Network Latency badge to emit `openFullScreen('network')` directly to inspect multi-cloud edge latency in `NetworkView.vue`.
+   - Wired `@open-full-screen="handleOpenFullScreen"` on `TopBar` inside `src/App.vue`.
+
+2. **GitHub Precision Engine & Developer Showcase (`src/stores/github.ts` & `GitHubView.vue`):**
+   - *Problem:* GitHub REST `/events` endpoint only captures public events from the last 90 days and caps at 300 events; calculating a commit calendar from `/events` produces inaccurate heatmaps that diverge from `github.com`.
+   - *Resolution:* Implemented a dual-mode precision engine:
+     - **GraphQL Mode (when PAT token provided):** Queries `viewer { contributionsCollection { contributionCalendar { ... } } }` for 100% exact parity with official contribution graphs.
+     - **Public Scraper Mode (when unauthenticated / username only):** Queries `https://github-contributions-api.jogruber.de/v4/{username}` to extract actual historical daily counts.
+   - Enhanced `GitHubView.vue`:
+     - **Developer Profile Banner:** Renders user avatar, bio, follower count, and public repository statistics.
+     - **Interactive 14-Day Heatmap:** Renders daily squares with day-of-week abbreviations, exact commit counts, and tooltip hovers.
+     - **Top Repositories Grid:** Displays user's top/pinned repositories with language color pills, star badges, and descriptions.
+     - **Active Pull Requests:** Lists open PRs with branches and review request flags.
+
+3. **ShipTrack Integration & Dev Server Bridge (`vite.config.ts` & `src/stores/delivery.ts`):**
+   - *Problem:* `https://shiptrack.aswincloud.com/api/track/...` does not return `Access-Control-Allow-Origin` CORS headers, causing browser `fetch()` requests to fail even though the HTTP 200 JSON payload arrives. Additionally, external public CORS proxies are unreliable and rate-limited.
+   - *Resolution:* Created a native same-origin server middleware in `vite.config.ts`:
+     - Intercepts `/api/carriers` and `/api/track/:carrier/:trackingNumber`.
+     - Makes server-to-server outbound requests via Node.js `https` module to `shiptrack.aswincloud.com`.
+     - Returns responses directly to the client with `Access-Control-Allow-Origin: *`.
+   - *Schema Normalization:* Corrected response parser to read `data.events` (ShipTrack format: `{ date, location, description }`), `data.destination`, `data.estimatedDelivery`, and `data.status`.
+   - *Zero-Mock Sanitization:* Removed all `INITIAL_DEMO_PARCELS`, dummy checkpoints, simulation buttons, and 17TRACK/Ship24 configuration modals.
+
+4. **Race Condition & Reactivity Fixes:**
+   - *In-Flight Deletion Guard:* When a user deletes a package while a carrier fetch is in progress, the resolved promise previously re-saved the package to `localStorage`. Added an ID existence guard before calling `saveParcels()`.
+   - *Vue 3 Reactivity Array Mapping:* Replaced in-place object mutations with cloned array mapping (`parcels.value = parcels.value.map(...)`), ensuring immediate DOM repaints without requiring browser reloads.
+   - *Live Connecting Loader State:* When querying carriers, parcel cards display an animated pulse badge and spinning `RefreshCw` icon without rendering fake checkpoints.
+
+5. **Per-Track Manual Sync Architecture across Main Views:**
+   - Added individual `[ 🔄 ]` manual sync buttons on:
+     - `src/components/hub/StandbyWorkHub.vue`: Every parcel item in the Standby Hub has an independent sync button next to its status pill.
+     - `src/components/FavoriteWidgetsPanel.vue`: Every parcel item in the Favorites Panel has an individual sync button with `.stop` modifier to prevent bubbling to full-screen navigation.
+     - `src/components/widgets/WidgetCardContainer.vue`: Packages tab displays all shipments with dedicated sync buttons.
+     - `src/components/views/DeliveryView.vue`: Each package card features a dedicated `[ 🔄 Sync ]` button alongside carrier deep-linking and deletion.
+
+6. **Dev Credits & Acknowledgements:**
+   - Added prominent credits and links to [Aswincloud/shiptrack](https://github.com/Aswincloud/shiptrack) in `README.md` and `docs/SYSTEM_SPEC.md`.
+
+### 3. Verification & Build
+- `npm run build` (`vue-tsc && vite build`) passed with 0 errors in 1.43s.
+- Bundle size: ~330.0 kB static (~93.8 kB gzipped).
+- Dev server safely shut down after user verification.
+
+---
+
+## Log Entry: 2026-11-14 (Entry 21)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** AC Mode Redundancy Removal & Contextual In-Widget Settings Architecture
+
+### 1. Architectural Changes Implemented
+1. **Removed Redundant 'Off' from AC Mode Dropdown:**
+   - *Problem:* `ClimateCard.vue` has a dedicated Power On/Off button. Leaving `'off'` as an option inside the Mode dropdown was confusing and redundant.
+   - *Resolution:* Filtered out `'off'` from `hvacModesList` in `src/components/cards/ClimateCard.vue`. The dropdown now exclusively lists active operational modes (`Auto`, `Cool`, `Dry`, `Fan Only`, `Heat`). The dedicated Power button exclusively manages On/Off state.
+2. **Contextual In-Widget Settings Architecture:**
+   - *Problem:* Centralizing city searches, API keys, and personal access tokens inside the main system settings cluttered the kiosk settings and broke the user mental model (requiring leaving a widget to configure it).
+   - *Resolution:* Moved all widget configurations directly into their respective Full-Screen views:
+     - **Weather Station (`WeatherView.vue`):** Added a `[ ⚙️ Location ]` button in the header. Tapping opens an inline drawer with Open-Meteo city search (Enter/Search trigger), GPS auto-location toggle, and live coordinate display. Selecting a city instantly reloads the weather forecast on screen in real time.
+     - **GitHub Activity Hub (`GitHubView.vue`):** Added a `[ ⚙️ Account Credentials ]` button in the header for fast, in-place updates of username and personal access token with instant sync.
+     - **Domestic Courier Tracker (`DeliveryView.vue`):** Added a `[ ⚙️ Carrier API ]` button in the header alongside `[ + Track Package ]` to manage live 17TRACK/Ship24 API keys in context.
+3. **Pure System Infrastructure Settings Modal:**
+   - *Resolution:* Completely freed up `SettingsModal.vue`. It is now strictly focused on core system infrastructure:
+     1. Operational Profile (Desk vs Car Mode)
+     2. Desk Mode Lock PIN
+     3. Spotify Web API (PKCE authorization & redirect URI)
+     4. Home Assistant Connection (Server URL, Long-Lived Token, Mock mode, Room light sync, Pinned primary entities)
+
+### 2. Verification & Build
+- `npm run build` (`vue-tsc && vite build`) passed with 0 errors in 1.42s.
+- Bundle size: ~307.8 kB static (~87.8 kB gzipped).
+
+---
+
+## Log Entry: 2026-11-14 (Entry 20)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** AC Card Vertical Streamlining, Downward Dropdown Anchoring & Dedicated Full-Screen Widget Settings Page
+
+### 1. Refinements Implemented
+1. **Removed Redundant "Target Setpoint" Label:**
+   - In `ClimateCard.vue`, removed the text label `<span class="text-[8px] uppercase tracking-widest font-bold text-neutral-400">Target Setpoint</span>` beneath the target temperature display. The setpoint display (`24.0 °C`) nestled directly between the `-` and `+` steppers is immediately self-understood, eliminating ~15px of unnecessary vertical height.
+2. **Downward Dropdown Anchoring & Overflow Fix:**
+   - *Problem:* AC Mode and Fan Speed dropdowns opened upwards (`bottom-full`), which clipped past the top panel header and went off-screen.
+   - *Resolution:* Changed popover positioning to open downwards (`top-full mt-1.5`) with compact bounds (`w-36 max-h-48 overflow-y-auto no-scrollbar`), semi-transparent backdrop blur (`bg-neutral-900/95 border-white/20`), and dynamic elevated stacking (`z-40 / z-50`). In `FavoriteWidgetsPanel.vue`, updated widget container classes to `overflow-visible relative` so popovers are never clipped by parent overflow boundaries.
+3. **Dedicated Full-Screen Page for Widget Settings:**
+   - *Problem:* Mixing Open-Meteo city search, GPS toggle, GitHub username/token, and Domestic Parcel API keys directly in the main Settings modal cluttered the primary system configuration (Operational Profiles, PIN lock, Spotify, HA integration).
+   - *Resolution:* Architected a dedicated full-screen sub-view inside `SettingsModal.vue`:
+     - **Main Settings View:** Replaced the long widget scroll with a sleek, high-visibility entry banner: `[ 📑 Configure Desk Widgets → ]`.
+     - **Widgets Full-Screen Page:** Displays full-width, comfortable configuration cards for Weather Station (live city search, coordinate indicators, GPS auto-location), GitHub Hub (username, token), and Domestic Courier Tracker.
+     - **Intuitive Back Navigation:** Header navigation dynamically adapts with a `< Back` button returning directly to system settings.
+
+### 2. Verification & Build
+- `npm run build` (`vue-tsc && vite build`) passed with 0 errors in 1.43s.
+- Bundle size: ~310.0 kB static (~88.2 kB gzipped).
+
+---
+
+## Log Entry: 2026-11-14 (Entry 19)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Dynamic Geocoding Search, Streamlined AC Dropdowns & Favorite Widgets System
+
+### 1. Features & Architectural Improvements Implemented
+1. **Dynamic Open-Meteo Geocoding Search (Zero Hardcoding):**
+   - *Problem:* Hardcoding coordinates for cities (like Jodhpur) is fragile and inflexible.
+   - *Resolution:* Replaced all hardcoded city dictionaries in `src/stores/weather.ts` with direct Open-Meteo Geocoding API search (`searchCities` and `selectCity`). In `SettingsModal.vue`, users type a city and press Enter or tap Search. A dropdown displays real-time matching results with city name, state/admin1, country, and precise latitude/longitude. Selecting a result saves coordinates to `localStorage['arcdock_weather_config']` and immediately re-queries weather for that exact location worldwide.
+2. **Streamlined ClimateCard with Mode & Fan Dropdowns:**
+   - *Problem:* Displaying all 5 HVAC mode buttons and fan speeds simultaneously on the card face caused excessive vertical and horizontal crowding on landscape mobile screens.
+   - *Resolution:* Redesigned `ClimateCard.vue` into a sleek, ultra-clean card:
+     - Header: Friendly name, power status, and ambient room temperature readout.
+     - Center: Target temperature stepper (`-` / `+`) with large font.
+     - Bottom Controls:
+       - Power toggle button.
+       - Mode dropdown pill (`[ ❄️ Cool ▾ ]` or `[ ✨ Auto ▾ ]`): Opens a popover menu showing all available HVAC modes with icons and checkmark indicator.
+       - Fan speed dropdown pill (`[ 💨 Auto ▾ ]`): Opens a popover menu with fan speeds.
+     - Includes click-outside listener to automatically dismiss popovers.
+3. **Favorite Widgets System (Max 2 Widgets):**
+   - *Problem:* The user requested a flexible favorite widget system (max 2 pinned widgets) instead of fixed tabs or duplicate cards. Previously, when Spotify was paused, having a Hub button on the right duplicated the GitHub/Deliveries already visible on the left.
+   - *Resolution:*
+     - Created `src/stores/favorites.ts` to manage pinned favorite widgets (`climate`, `lights`, `github`, `deliveries`, `weather`, `network`), persisted in `localStorage['arcdock_favorite_widgets']` (default: `['climate', 'lights']`). Enforces a strict maximum of 2 favorites with warning alert if user attempts to mark a 3rd without unmarking one first.
+     - In `FullScreenView.vue`: Added a `[ ⭐ Favorite ]` button in the header so any widget opened in full-screen can be toggled as a favorite.
+     - In `ControlCenterDrawer.vue`: Added a star toggle icon on every widget card and a counter indicator `Favorites: (X/2)`.
+     - Created `FavoriteWidgetsPanel.vue` for the right pane: When Spotify is PLAYING, renders the up to 2 pinned favorite widgets with quick expand buttons, plus an `[ ⋯ All Widgets ]` button.
+     - **Non-Duplicated Standby Split-Grid:** When Spotify is PAUSED, the left side displays the Work Hub (`StandbyWorkHub.vue` - GitHub & Deliveries) and the right side displays Smart Desk IoT controls (`DeskIoTPanel.vue`). Zero duplicate cards across both panes!
+
+### 2. Verification & Build
+- `npm run build` (`vue-tsc && vite build`) passed with 0 errors in 1.43s.
+- Bundle size: ~308.3 kB static (~87.8 kB gzipped).
+
+---
+
+## Log Entry: 2026-11-14 (Entry 18)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Car Mode Data Isolation, Official GitHub Icon, Jodhpur Geocoding & Right Pane Architectural Overhaul
+
+### 1. User Feedback Addressed & Implemented
+1. **Car Mode Strict Isolation in Paused State:**
+   - *Problem:* In Car Mode, when Spotify was paused, the application fell back to `StandbyWorkHub.vue`, exposing GitHub commits, activity streak, and domestic parcel trackers to passengers in the car.
+   - *Resolution:* In `src/App.vue`, conditioned the left canvas with `v-if="mode === 'car' || spotify.isPlaying"`. When `mode === 'car'`, the interface strictly renders `NowPlaying.vue` and `MediaBar.vue` regardless of whether playback is active or paused. `StandbyWorkHub` is strictly restricted to Desk Mode.
+2. **Right-Side Clutter & Vertical Stacking Overhaul:**
+   - *Problem:* On landscape mobile screens, stacking the tabbed widget container (weather, github, parcels) directly above the quick action bar (2 bulbs + AC controls) caused severe vertical clipping, overlapping buttons, and poor AC visibility. Furthermore, weather was already visible in the top bar pill, making the right-side weather tab redundant.
+   - *Resolution:* Architected a clean, spacious two-panel system on the right:
+     - **Smart Desk Controls (`DeskIoTPanel.vue`):** Dedicated full-height view with AC controls (now including `auto` mode with indigo accent) and smart light/switch tiles.
+     - **Developer & Logistics Hub (`DeskHubPanel.vue`):** Dedicated view with GitHub activity (streak, commits, PR badge, 14-day ribbon) and domestic courier parcel tracker with milestone progress bars.
+     - **Seamless 2-Way Switching:** Header button `[ 🐙 Hub ]` switches to the hub, and `[ 📚 Smart Desk ]` returns to desk controls. Redundant weather widgets were removed from the right pane.
+3. **Official GitHub Mark:**
+   - *Problem:* GitHub was previously represented by a flame icon (`Flame`).
+   - *Resolution:* Replaced all instances of `Flame` with the official GitHub mark (`Github` from `lucide-vue-next`) across `TopBar.vue`, `SettingsModal.vue`, `ControlCenterDrawer.vue`, `GitHubView.vue`, `StandbyWorkHub.vue`, `DeskIoTPanel.vue`, and `DeskHubPanel.vue`.
+4. **Weather Geocoding & Jodhpur Coordinate Resolution:**
+   - *Problem:* Selecting "Jodhpur" returned inaccurate temperatures because the Open-Meteo weather API requires latitude and longitude coordinates. The store was previously retaining default coordinates (New Delhi / IP GPS) when saving city names.
+   - *Resolution:* Added built-in coordinate mapping for Indian tech hubs and major cities in `src/stores/weather.ts` (including Jodhpur: `lat: 26.2868, lon: 73.0300`), along with an Open-Meteo geocoding search fallback. Saving a city now automatically disables GPS overriding (`useGeo = false`) and queries the exact city coordinates.
+5. **Car Mode Security PIN Lock:**
+   - *Problem:* When switching back to Desk Mode, personal controls and settings must be protected by a PIN lock.
+   - *Resolution:* Added a 4-digit PIN unlock dialog (`z-[100]`) in `TopBar.vue` with numeric touch keypad, shake animation on error, and configurable PIN stored in `localStorage['arcdock_desk_pin']` (default: `0000`) managed via `SettingsModal.vue`.
+
+### 2. Verification & Build
+- `npm run build` (`vue-tsc && vite build`) passed with 0 errors in 1.42s.
+- Bundle size: ~292.5 kB static (~84.6 kB gzipped).
+
+---
+
+## Log Entry: 2026-11-14 (Entry 17)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Ergonomic Screen Optimization, Dual-Direction Navigation & Car Mode Kiosk Lock
+
+### 1. Issues Diagnosed & Solutions Implemented
+1. **Vertical Clutter & Controls Overflowing Screen in Playing Mode:**
+   - *Problem:* In phone landscape viewports (~360px physical height), stacking two separate boxes (`WidgetCardContainer` + `QuickActionBar`) each with their own headers, margins, and 54px buttons pushed the quick controls off the bottom edge. Furthermore, the tab bar in `WidgetCardContainer` overflowed horizontally in narrow split panes.
+   - *Resolution:* Consolidated the header: moved the `[ 💡 Lights ]` grid toggle directly into the tab bar of `WidgetCardContainer.vue`, eliminating the redundant "Desk Overview" top row. Designed `QuickActionBar.vue` as a sleek, single-line strip (`h-10`) with compact buttons and inline AC stepper. This saved ~50px of vertical space, ensuring 100% of controls stay safely on screen with zero clipping.
+2. **Two-Way Navigation Between Widgets & Lights Grid:**
+   - *Problem:* When in Playing mode, clicking "Lights" switched the right pane to `DeskIoTPanel.vue`, but there was no way to return to the widget overview.
+   - *Resolution:* Added `showWidgetsToggle` prop and emit to `DeskIoTPanel.vue`. When active, a prominent `[ 📑 Widgets ]` pill appears on the left of the header, allowing users to toggle back and forth effortlessly.
+3. **Redundant Controls in Paused Standby State:**
+   - *Problem:* When Spotify was paused, the top `MediaBar` remained visible on the left pane while `StandbyWorkHub.vue` was rendered below it, resulting in duplicate headers and redundant controls.
+   - *Resolution:* Conditioned `MediaBar.vue` to render **only when `spotify.isPlaying` is true**. When paused, `StandbyWorkHub` expands to occupy the full left column without clutter. When playback resumes, `MediaBar` seamlessly returns.
+4. **Climate AC "Auto" Mode Missing:**
+   - *Problem:* `ClimateCard.vue` supported `off`, `cool`, `dry`, and `fan_only`, but lacked `auto` HVAC mode.
+   - *Resolution:* Added `'auto'` mode support with dedicated `Sparkles` icon, indigo glowing badge, and updated `homeAssistant.ts` mock/service callers.
+5. **Car Mode Privacy Kiosk & PIN Security Lock:**
+   - *Problem:* In Car Mode, the dock should act as a pure automotive remote without exposing personal data (smart home, GitHub streaks, deliveries, system settings). Exiting Car Mode should be protected so passengers/valets cannot access personal controls.
+   - *Resolution:*
+     - Completely removed the `Settings` button, `Weather` pill, `Network` ping badge, and `ControlCenter` swipe/grab handles in Car Mode (`mode === 'car'`).
+     - Added a secure **4-digit PIN Unlock Keypad** dialog (`z-[100]`) when attempting to switch from Car Mode back to Desk Mode.
+     - Added PIN configuration in `SettingsModal.vue` (`arcdock_desk_pin`, default: `0000`).
+
+### 2. Verification & Build
+- `npm run build` (`vue-tsc && vite build`) passed with 0 errors in 1.43s.
+- Bundle size: ~295.6 kB static (~84.8 kB gzipped).
+
+---
+
+## Log Entry: 2026-11-14 (Entry 16)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Phase 4 — Intermediate Polish & Advanced Desk Hub Implementation
+
+### 1. Key Milestones Completed
+1. **Step 4.1: Smart Room Immersion & SmartThings Climate AC Integration:**
+   - Implemented `useRoomSync.ts` composable bridging ColorThief dominant RGB palette extraction directly to Home Assistant light entities.
+   - Enforced the strict **"Only If ON" safety rule**: ArcDock checks whether target lights (`light.wiz_desk_lamp`, `light.gohigh_light_bars`, `light.ambient_strip`) are currently `on`; if off, color dispatch is skipped to avoid turning room lights on unexpectedly.
+   - Built `src/components/cards/ClimateCard.vue` with 44px thumb-friendly target buttons, 0.5°C step increments, HVAC mode pills (`Cool`, `Dry`, `Fan`, `Heat`, `Off`), fan speed selector (`Auto`, `Low`, `Medium`, `High`), and current room temperature readout.
+   - Added mock and live WebSocket service callers for `set_temperature`, `set_hvac_mode`, and `set_fan_mode`.
+2. **Step 4.2: Top-Down Desk Control Center Drawer & Full-Screen Expansion Pattern:**
+   - Built `src/components/ControlCenterDrawer.vue` featuring a 6-card glanceable launcher grid (`Weather`, `GitHub`, `Deliveries`, `Smart AC`, `Lights`, `Network Monitor`).
+   - Added pull-down touch gesture and discreet `━` grab pill on `TopBar.vue`.
+   - Built reusable `src/components/FullScreenView.vue` (`fixed inset-0 w-screen h-screen bg-black z-[100]`) with back chevron and close controls.
+3. **Step 4.3: Dynamic Dual-State Layout Controller:**
+   - **Playing State (`is_playing === true`):** Left side renders full Spotify Glass Remote; right side renders `WidgetCardContainer.vue` (~65% height) + `QuickActionBar.vue` (~35% height) with quick toggles for Desk Lamp, Screen Bar, AC pill with inline step, and All-Off. Includes instant toggle to classic All-Lights grid.
+   - **Paused Standby Hub (`is_playing === false`):** Left side transforms into `StandbyWorkHub.vue` featuring GitHub streak ribbon, PR review requests, and active parcel milestone tracker, with a persistent bottom-pinned `[ ▶ Resume: {Track} ]` pill. Right side expands to full room console `DeskIoTPanel.vue`.
+4. **Step 4.4: Desk Widgets & API Stores:**
+   - **Weather:** `src/stores/weather.ts` & `WeatherView.vue` using Open-Meteo REST API (HTML5 Geolocation + fallback city, 30-min cache, WMO weather interpretation, 24h hourly curve & 7-day forecast).
+   - **Network Ping:** `src/stores/network.ts` & `NetworkView.vue` with 10s DNS ping probe and real-time status sparkline.
+   - **GitHub Activity Hub:** `src/stores/github.ts` & `GitHubView.vue` tracking 14-day contribution heatmap, streak count, today's commits, and open review-requested PRs list.
+   - **Indian Parcel Tracker:** `src/stores/delivery.ts` & `DeliveryView.vue` with multi-carrier tracking (*Delhivery, Blue Dart, DTDC, India Post, Ekart, Xpressbees, Shadowfax*), 3-stage visual progress milestone bar, checkpoint scan history, and custom shipment tracking modal.
+5. **Step 4.5: Entity Favorites & PWA Manifest:**
+   - Added "Pinned Desk Entities" multi-select in `SettingsModal.vue` to customize primary grid cards.
+   - Created `public/manifest.json` and meta link tags in `index.html` for clean fullscreen landscape PWA execution.
+
+### 2. Verification & Build
+- `npm run build` (`vue-tsc && vite build`) passed with 0 errors in 1.28s.
+- Bundle size: ~289.7 kB static (~83.5 kB gzipped).
+
+---
+
+## Log Entry: 2026-11-14 (Entry 15)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Phase 4 UI Architecture & Desk Control Center Specification
+
+### 1. Architectural Decisions & UI Ergonomics Analysis
+1. **Dynamic Playing vs Paused Standby Work Hub:**
+   - *Problem Identified:* Having static light switch cards permanently occupying 50% of the screen while music is playing is a massive waste of AMOLED pixels (lights/AC are set once and rarely changed). Conversely, when music is paused, leaving the left pane as an idle player or giant clock wastes valuable screen estate.
+   - *Resolution:* Implemented a context-aware Dual-State Canvas:
+     - **Active Playing State (`is_playing === true`):** Left side is full Spotify Glass Remote; Right side is an uncluttered 2-row layout: Top ~65% is a tabbed/swipeable dynamic widget card (`Weather`, `GitHub`, `Deliveries`), Bottom ~35% is a 1-tap quick action row for Desk Light and AC.
+     - **Paused Work Hub State (`is_playing === false`):** Left side transforms into the Developer & Logistics Work Hub (GitHub daily streak + PR reviews list, active parcel tracking bar); Right side expands into the full Room & Climate Command console (large AC controls, lighting, scenes); Bottom pinned bar displays clock + 1-tap music resumption pill (`▶ Resume`).
+2. **Top-to-Down "Desk Control Center" Drawer & Full-Screen Views:**
+   - *Problem Identified:* Phone landscape viewport is physically ~360–390 CSS pixels tall. Cramming 4–6 separate cards into the view causes microscopic typography and poor touch ergonomics.
+   - *Resolution:* Created a top-down swipe drawer (accessible via pull-down gesture or top-bar handle pill `━`) housing a 6-card glanceable launcher. Tapping any card expands into a dedicated, unconstrained full-screen view (`fixed inset-0 w-screen h-screen bg-black z-[100]`), allowing detailed interactions (reading full PR titles, complete delivery checkpoints, 7-day hourly forecasts) with zero vertical cramping.
+3. **Approved Feature Specifications:**
+   - **Dynamic Album Art Room-Sync:** WiZ Bulbs & GoHigh light bars sync to ColorThief RGB palette. *Strict Inviolable Rule:* Sync is gated by checking if target lights are **already ON** (if lights are off during the day, do nothing).
+   - **SmartThings Climate/AC Card (`ClimateCard.vue`):** Dedicated touch card with current temp, target setpoint, large 44px thumb `+` / `−` buttons, mode pills (`Cool`, `Fan`, `Off`), and fan speed selector.
+   - **Desk Weather Station:** Open-Meteo REST API (zero API key, 30-min cache). Header pill + full-screen hourly/weekly curve.
+   - **Network Latency Sparkline (`PingMonitor.vue`):** Real-time ping indicator to `1.1.1.1` (10s interval, health badge, spike alert >120ms).
+   - **GitHub Activity Hub:** Daily contribution streak + today's commit count + PR review requests list.
+   - **Indian Parcel Tracker:** Custom tracking ID input + Indian courier selector (*Delhivery, Blue Dart, DTDC, India Post, Ekart, Xpressbees, Shadowfax*) with 3-stage visual progress milestone bar.
+
+### 2. Documentation Updates
+- Updated `docs/SYSTEM_SPEC.md` with master technical specification for Subsystem 5 (Desk Control Center, dual-state canvas, full-screen pattern, and widget API specs).
+- Updated `docs/IMPLEMENTATION_PLAN.md` with granular Step 4.1 through 4.5 task lists.
+
+---
+
 ## Log Entry: 2026-11-14 (Entry 14)
 **Author:** Antigravity AI Assistant & Utkarsh  
 **Phase:** On-Device Proof of Concept (POC) Verification & Xiaomi Unlock Timer Initiation

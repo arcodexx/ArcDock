@@ -9,11 +9,12 @@ import {
   ERR_CANNOT_CONNECT,
   ERR_INVALID_AUTH,
 } from 'home-assistant-js-websocket';
-import type { HassEntities, ConnectionStatus } from '@/types/homeAssistant';
+import type { HassEntities, ConnectionStatus, RoomSyncConfig } from '@/types/homeAssistant';
 
 const STORAGE_KEY_URL = 'arcdock_ha_url';
 const STORAGE_KEY_TOKEN = 'arcdock_ha_token';
 const STORAGE_KEY_MOCK = 'arcdock_ha_mock';
+const STORAGE_KEY_ROOM_SYNC = 'arcdock_ha_room_sync';
 
 const INITIAL_MOCK_ENTITIES: HassEntities = {
   'light.desk_lamp': {
@@ -34,12 +35,33 @@ const INITIAL_MOCK_ENTITIES: HassEntities = {
       supported_color_modes: ['brightness'],
     },
   },
+  'light.wiz_desk_lamp': {
+    entity_id: 'light.wiz_desk_lamp',
+    state: 'on',
+    attributes: {
+      friendly_name: 'WiZ RGB Desk Lamp',
+      brightness: 220,
+      rgb_color: [255, 180, 100],
+      supported_color_modes: ['brightness', 'rgb'],
+    },
+  },
+  'light.gohigh_light_bars': {
+    entity_id: 'light.gohigh_light_bars',
+    state: 'on',
+    attributes: {
+      friendly_name: 'GoHigh Light Bars',
+      brightness: 255,
+      rgb_color: [60, 120, 255],
+      supported_color_modes: ['brightness', 'rgb'],
+    },
+  },
   'light.ambient_strip': {
     entity_id: 'light.ambient_strip',
     state: 'off',
     attributes: {
       friendly_name: 'RGB Ambient Strip',
       brightness: 140,
+      rgb_color: [140, 60, 255],
       supported_color_modes: ['brightness', 'rgb'],
     },
   },
@@ -48,6 +70,22 @@ const INITIAL_MOCK_ENTITIES: HassEntities = {
     state: 'off',
     attributes: {
       friendly_name: 'Desk Fan',
+    },
+  },
+  'climate.bedroom_ac': {
+    entity_id: 'climate.bedroom_ac',
+    state: 'cool',
+    attributes: {
+      friendly_name: 'Bedroom AC',
+      current_temperature: 26.5,
+      temperature: 24.0,
+      min_temp: 16,
+      max_temp: 30,
+      target_temp_step: 0.5,
+      hvac_modes: ['off', 'cool', 'auto', 'dry', 'fan_only'],
+      hvac_action: 'cooling',
+      fan_modes: ['auto', 'low', 'medium', 'high'],
+      fan_mode: 'auto',
     },
   },
   'scene.focus': {
@@ -71,6 +109,30 @@ const INITIAL_MOCK_ENTITIES: HassEntities = {
       friendly_name: 'Night Mode',
     },
   },
+};
+
+const loadRoomSyncConfig = (): RoomSyncConfig => {
+  const raw = localStorage.getItem(STORAGE_KEY_ROOM_SYNC);
+  try {
+    return raw ? JSON.parse(raw) : {
+      enabled: false,
+      targetEntityIds: ['light.wiz_desk_lamp', 'light.gohigh_light_bars', 'light.ambient_strip'],
+    };
+  } catch {
+    return {
+      enabled: false,
+      targetEntityIds: ['light.wiz_desk_lamp', 'light.gohigh_light_bars', 'light.ambient_strip'],
+    };
+  }
+};
+
+const loadPinnedEntityIds = (): string[] => {
+  const raw = localStorage.getItem('arcdock_ha_pinned');
+  try {
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 };
 
 export const useHomeAssistantStore = defineStore('homeAssistant', () => {
@@ -103,6 +165,27 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
   const scenes = computed(() => {
     return Object.values(entities.value).filter((e) => e.entity_id.startsWith('scene.'));
   });
+
+  const climates = computed(() => {
+    return Object.values(entities.value).filter((e) => e.entity_id.startsWith('climate.'));
+  });
+
+  const roomSyncConfig = ref<RoomSyncConfig>(loadRoomSyncConfig());
+
+  const pinnedEntityIds = ref<string[]>(loadPinnedEntityIds());
+
+  const setPinnedEntities = (ids: string[]) => {
+    pinnedEntityIds.value = ids;
+    localStorage.setItem('arcdock_ha_pinned', JSON.stringify(ids));
+  };
+
+  const setRoomSyncConfig = (config: Partial<RoomSyncConfig>) => {
+    roomSyncConfig.value = {
+      ...roomSyncConfig.value,
+      ...config,
+    };
+    localStorage.setItem(STORAGE_KEY_ROOM_SYNC, JSON.stringify(roomSyncConfig.value));
+  };
 
   const setMockMode = (enabled: boolean) => {
     isMockMode.value = enabled;
@@ -321,6 +404,108 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
     }
   };
 
+  // Climate actions
+  const setTemperature = async (entityId: string, temperature: number) => {
+    const entity = entities.value[entityId];
+    if (!entity) return;
+
+    const minTemp = entity.attributes.min_temp ?? 16;
+    const maxTemp = entity.attributes.max_temp ?? 30;
+    const step = entity.attributes.target_temp_step ?? 0.5;
+    const rounded = Math.round(temperature / step) * step;
+    const clampedTemp = Math.max(minTemp, Math.min(maxTemp, Number(rounded.toFixed(1))));
+
+    if (isMockMode.value) {
+      entity.attributes.temperature = clampedTemp;
+      return;
+    }
+
+    if (connection) {
+      try {
+        await callService(connection, 'climate', 'set_temperature', {
+          entity_id: entityId,
+          temperature: clampedTemp,
+        });
+      } catch (e: any) {
+        console.error('[ArcDock HA] Failed to set temperature:', e);
+      }
+    }
+  };
+
+  const setHvacMode = async (entityId: string, hvacMode: string) => {
+    const entity = entities.value[entityId];
+    if (!entity) return;
+
+    if (isMockMode.value) {
+      entity.state = hvacMode;
+      entity.attributes.hvac_mode = hvacMode;
+      entity.attributes.hvac_action = hvacMode === 'off' ? 'off' : (hvacMode === 'cool' ? 'cooling' : (hvacMode === 'heat' ? 'heating' : 'idle'));
+      return;
+    }
+
+    if (connection) {
+      try {
+        await callService(connection, 'climate', 'set_hvac_mode', {
+          entity_id: entityId,
+          hvac_mode: hvacMode,
+        });
+      } catch (e: any) {
+        console.error('[ArcDock HA] Failed to set HVAC mode:', e);
+      }
+    }
+  };
+
+  const setFanMode = async (entityId: string, fanMode: string) => {
+    const entity = entities.value[entityId];
+    if (!entity) return;
+
+    if (isMockMode.value) {
+      entity.attributes.fan_mode = fanMode;
+      return;
+    }
+
+    if (connection) {
+      try {
+        await callService(connection, 'climate', 'set_fan_mode', {
+          entity_id: entityId,
+          fan_mode: fanMode,
+        });
+      } catch (e: any) {
+        console.error('[ArcDock HA] Failed to set fan mode:', e);
+      }
+    }
+  };
+
+  // Dynamic Room Lights Sync to Spotify Album Art RGB
+  const syncLightsToColor = async (rgb: [number, number, number]) => {
+    if (!roomSyncConfig.value.enabled) return;
+
+    const targets = roomSyncConfig.value.targetEntityIds;
+    if (!targets || targets.length === 0) return;
+
+    for (const entityId of targets) {
+      const entity = entities.value[entityId];
+      // INVIOLABLE SAFETY RULE: Only dispatch if the light is ALREADY ON!
+      if (!entity || entity.state !== 'on') {
+        continue;
+      }
+
+      if (isMockMode.value) {
+        entity.attributes.rgb_color = rgb;
+      } else if (connection) {
+        try {
+          await callService(connection, 'light', 'turn_on', {
+            entity_id: entityId,
+            rgb_color: rgb,
+            transition: 2,
+          });
+        } catch (e: any) {
+          console.error(`[ArcDock HA] Failed to sync light ${entityId} to album art:`, e);
+        }
+      }
+    }
+  };
+
   return {
     haUrl,
     haToken,
@@ -333,13 +518,22 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
     lights,
     switches,
     scenes,
+    climates,
+    roomSyncConfig,
+    pinnedEntityIds,
     setMockMode,
     setConfig,
+    setRoomSyncConfig,
+    setPinnedEntities,
     connect,
     disconnect,
     toggleLight,
     setBrightness,
     toggleSwitch,
     activateScene,
+    setTemperature,
+    setHvacMode,
+    setFanMode,
+    syncLightsToColor,
   };
 });

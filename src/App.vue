@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useSpotifyStore } from '@/stores/spotify';
 import { useAmoledProtection } from '@/composables/useAmoledProtection';
+import { useRoomSync } from '@/composables/useRoomSync';
 import TopBar from '@/components/TopBar.vue';
 import MediaBar from '@/components/MediaBar.vue';
 import NowPlaying from '@/components/NowPlaying.vue';
@@ -13,25 +14,53 @@ import QueueDrawer from '@/components/QueueDrawer.vue';
 import SearchDrawer from '@/components/SearchDrawer.vue';
 import SettingsModal from '@/components/SettingsModal.vue';
 import OledScreensaver from '@/components/OledScreensaver.vue';
+import ControlCenterDrawer from '@/components/ControlCenterDrawer.vue';
+import FullScreenView from '@/components/FullScreenView.vue';
+import WeatherView from '@/components/views/WeatherView.vue';
+import GitHubView from '@/components/views/GitHubView.vue';
+import DeliveryView from '@/components/views/DeliveryView.vue';
+import ClimateView from '@/components/views/ClimateView.vue';
+import LightsView from '@/components/views/LightsView.vue';
+import NetworkView from '@/components/views/NetworkView.vue';
+import FavoriteWidgetsPanel from '@/components/FavoriteWidgetsPanel.vue';
+import StandbyWorkHub from '@/components/hub/StandbyWorkHub.vue';
 import { Radio, Sparkles } from 'lucide-vue-next';
 
 const spotify = useSpotifyStore();
+useRoomSync();
 
 const mode = ref<'desk' | 'car'>((localStorage.getItem('arcdock_mode') as 'desk' | 'car') || 'desk');
 
 type DrawerType = 'playlists' | 'queue' | 'devices' | 'settings' | 'search' | null;
 const activeDrawer = ref<DrawerType>(null);
 
+// Control Center & Full Screen View State
+const isControlCenterOpen = ref(false);
+type FullScreenTarget = 'weather' | 'github' | 'deliveries' | 'climate' | 'lights' | 'network' | null;
+const activeFullScreen = ref<FullScreenTarget>(null);
+
+
+
 const { isSleeping, wakeUp, pixelShift } = useAmoledProtection(() => !spotify.isPlaying);
 
 const toggleMode = () => {
   mode.value = mode.value === 'desk' ? 'car' : 'desk';
   localStorage.setItem('arcdock_mode', mode.value);
+  if (mode.value === 'car') {
+    isControlCenterOpen.value = false;
+    activeFullScreen.value = null;
+    closeDrawer();
+  }
 };
 
 const setMode = (newMode: 'desk' | 'car') => {
   mode.value = newMode;
   localStorage.setItem('arcdock_mode', newMode);
+  if (newMode === 'car') {
+    isControlCenterOpen.value = false;
+    activeFullScreen.value = null;
+    closeDrawer();
+  }
 };
 
 const toggleDrawer = (type: DrawerType) => {
@@ -42,9 +71,43 @@ const closeDrawer = () => {
   activeDrawer.value = null;
 };
 
+const handleOpenFullScreen = (target: NonNullable<FullScreenTarget>) => {
+  isControlCenterOpen.value = false;
+  activeFullScreen.value = target;
+};
+
+const closeFullScreen = () => {
+  activeFullScreen.value = null;
+};
+
+const getFullScreenMeta = computed(() => {
+  switch (activeFullScreen.value) {
+    case 'weather':
+      return { title: 'Desk Weather Station', subtitle: '24-hour & 7-day forecast via Open-Meteo' };
+    case 'github':
+      return { title: 'GitHub Developer Hub', subtitle: 'Contribution streak, activity heatmap & review requests' };
+    case 'deliveries':
+      return { title: 'Domestic Parcel Tracker', subtitle: 'Multi-carrier Indian courier package milestones' };
+    case 'climate':
+      return { title: 'SmartThings Room Climate', subtitle: 'AC temperature setpoint & HVAC modes' };
+    case 'lights':
+      return { title: 'Desk Lights & Scenes', subtitle: 'Smart lighting controls and ambient presets' };
+    case 'network':
+      return { title: 'Network Latency Monitor', subtitle: 'Real-time DNS ping and latency sparkline' };
+    default:
+      return { title: 'Desk Hub', subtitle: '' };
+  }
+});
+
 const handleKeyDown = (e: KeyboardEvent) => {
   if (e.key === 'Escape') {
-    closeDrawer();
+    if (activeFullScreen.value) {
+      closeFullScreen();
+    } else if (isControlCenterOpen.value) {
+      isControlCenterOpen.value = false;
+    } else {
+      closeDrawer();
+    }
   }
 };
 
@@ -82,29 +145,38 @@ onUnmounted(() => {
       transform: `translate3d(${pixelShift.x}px, ${pixelShift.y}px, 0)`,
     }"
   >
-    <!-- Top System Bar: Operational Mode (Icon only) + Clock + Settings -->
+    <!-- Top System Bar: Operational Mode + Grab Handle for Control Center + Settings -->
     <TopBar
       :mode="mode"
       @toggle-mode="toggleMode"
       @open-settings="toggleDrawer('settings')"
+      @open-control-center="isControlCenterOpen = true"
+      @open-full-screen="handleOpenFullScreen"
     />
 
     <!-- Main Screen Content: Resizable & Collapsible Split-Grid in Desk Mode -->
     <div class="flex-1 w-full flex flex-col overflow-hidden relative">
       <SplitPane :disabled="mode === 'car'">
-        <!-- Left Pane: Media Remote with Scoped Controls -->
+        <!-- Left Pane: Media Remote or Paused Standby Hub -->
         <template #left>
           <div class="h-full w-full flex flex-col overflow-hidden relative">
-            <!-- Scoped Media Bar (Target Device + Search, Playlists, Queue strictly inside Spotify area) -->
+            <!-- Scoped Media Bar: ONLY shown when Spotify is actively PLAYING or in CAR MODE -->
             <MediaBar
+              v-if="mode === 'car' || spotify.isPlaying"
               @toggle-playlists="toggleDrawer('playlists')"
               @toggle-queue="toggleDrawer('queue')"
               @toggle-search="toggleDrawer('search')"
               @toggle-devices="toggleDrawer('devices')"
             />
 
-            <!-- Authenticated Spotify Player View -->
-            <NowPlaying v-if="spotify.isAuthenticated" />
+            <!-- Dual-State Left Canvas: Active Playing vs Paused Standby -->
+            <template v-if="spotify.isAuthenticated">
+              <!-- Active Playing State (or Car Mode): Spotify Remote ONLY -->
+              <NowPlaying v-if="mode === 'car' || spotify.isPlaying" />
+
+              <!-- Paused Standby Hub State: Only in Desk Mode when Paused -->
+              <StandbyWorkHub v-else />
+            </template>
 
             <!-- Welcome / Setup View when not yet authenticated -->
             <div
@@ -126,7 +198,7 @@ onUnmounted(() => {
 
               <button
                 @click="toggleDrawer('settings')"
-                class="px-8 py-4 rounded-2xl bg-spotify-green hover:bg-spotify-light text-black font-bold text-base tracking-wide active:scale-95 transition-all shadow-xl shadow-spotify-green/20"
+                class="px-8 py-4 rounded-2xl bg-spotify-green hover:bg-spotify-light text-black font-bold text-base tracking-wide active:scale-95 transition-all shadow-xl shadow-spotify-green/20 cursor-pointer"
               >
                 Connect Spotify Account
               </button>
@@ -134,12 +206,47 @@ onUnmounted(() => {
           </div>
         </template>
 
-        <!-- Right Pane: Smart Desk IoT Controls (Desk Mode Only) -->
+        <!-- Right Pane: Dual-State Right Canvas in Desk Mode -->
         <template #right="{ collapse }">
-          <DeskIoTPanel @collapse="collapse" />
+          <!-- When Spotify is actively PLAYING: Display Pinned Favorite Widgets (up to 2) -->
+          <FavoriteWidgetsPanel
+            v-if="spotify.isPlaying"
+            @open-fullscreen="handleOpenFullScreen"
+            @open-all="isControlCenterOpen = true"
+            @collapse="collapse"
+          />
+
+          <!-- When Spotify is PAUSED: Display Smart Desk IoT Environment (while Left Pane displays Work Hub) -->
+          <DeskIoTPanel
+            v-else
+            @collapse="collapse"
+          />
         </template>
       </SplitPane>
     </div>
+
+    <!-- Top-Down Desk Control Center Drawer -->
+    <ControlCenterDrawer
+      v-if="isControlCenterOpen"
+      @close="isControlCenterOpen = false"
+      @open-fullscreen="handleOpenFullScreen"
+    />
+
+    <!-- Dedicated Full-Screen View Pattern (z-[100]) -->
+    <FullScreenView
+      v-if="activeFullScreen !== null"
+      :title="getFullScreenMeta.title"
+      :subtitle="getFullScreenMeta.subtitle"
+      :target="activeFullScreen"
+      @close="closeFullScreen"
+    >
+      <WeatherView v-if="activeFullScreen === 'weather'" />
+      <GitHubView v-if="activeFullScreen === 'github'" />
+      <DeliveryView v-if="activeFullScreen === 'deliveries'" />
+      <ClimateView v-if="activeFullScreen === 'climate'" />
+      <LightsView v-if="activeFullScreen === 'lights'" />
+      <NetworkView v-if="activeFullScreen === 'network'" />
+    </FullScreenView>
 
     <!-- Slide-over Drawers & Modals (Mutually Exclusive) -->
     <DeviceDrawer v-if="activeDrawer === 'devices'" @close="closeDrawer" />
