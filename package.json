@@ -1,0 +1,36 @@
+{
+  "name": "arcdock",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arcodexx/ArcDock.git"
+  },
+  "bugs": {
+    "url": "https://github.com/arcodexx/ArcDock/issues"
+  },
+  "homepage": "https://github.com/arcodexx/ArcDock#readme",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "colorthief": "^2.4.0",
+    "home-assistant-js-websocket": "^9.8.1",
+    "lucide-vue-next": "^0.359.0",
+    "pinia": "^2.2.2",
+    "vue": "^3.4.21"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.4.3",
+    "vite": "^5.2.0",
+    "vue-tsc": "^2.0.7"
+  }
+}
