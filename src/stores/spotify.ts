@@ -58,21 +58,33 @@ export const useSpotifyStore = defineStore('spotify', () => {
     return `${origin}/callback`;
   });
 
-  // Safe token getter that handles silent refresh
+  // Safe token getter with mutex to eliminate concurrent refresh race conditions
+  let refreshPromise: Promise<SpotifyTokens | null> | null = null;
+
   const getValidToken = async (): Promise<string | null> => {
     if (!tokens.value) return null;
 
     // Refresh if expiring within 5 minutes
     if (Date.now() > tokens.value.expiresAt - 5 * 60 * 1000) {
-      try {
-        console.log('[Spotify] Token expiring soon, refreshing silently...');
-        const updatedTokens = await refreshAccessToken(tokens.value.refreshToken, clientId.value);
-        saveTokens(updatedTokens);
-      } catch (err: any) {
-        console.error('[Spotify] Silent refresh failed:', err);
-        error.value = 'Session expired. Please reconnect.';
-        return null;
+      if (!refreshPromise) {
+        refreshPromise = (async () => {
+          try {
+            console.log('[Spotify] Token expiring soon, refreshing silently...');
+            const updatedTokens = await refreshAccessToken(tokens.value!.refreshToken, clientId.value);
+            saveTokens(updatedTokens);
+            return updatedTokens;
+          } catch (err: any) {
+            console.error('[Spotify] Silent refresh failed:', err);
+            error.value = 'Session expired. Please reconnect.';
+            return null;
+          } finally {
+            refreshPromise = null;
+          }
+        })();
       }
+
+      const refreshed = await refreshPromise;
+      if (!refreshed) return null;
     }
 
     return tokens.value.accessToken;

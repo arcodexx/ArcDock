@@ -126,7 +126,7 @@ const getIntensityClass = (count: number) => {
         <button @click="showConfig = false" class="text-neutral-400 hover:text-white text-xs">✕</button>
       </div>
       <p class="text-xs text-neutral-400">
-        Enter your GitHub username to track live activity. Add an optional Read-Only Personal Access Token for private repos and increased rate limits.
+        Enter your GitHub username to track live activity. Add an optional fine-grained Personal Access Token with only <span class="text-purple-300 font-medium">read-only permissions</span> for contribution calendar data and increased rate limits. ArcDock never requires write access.
       </p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
         <div class="space-y-1">

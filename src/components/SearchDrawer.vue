@@ -78,9 +78,10 @@ const handleAddToQueue = async (track: SpotifyTrack) => {
   }
 };
 
+const searchInputRef = ref<HTMLInputElement | null>(null);
+
 onMounted(() => {
-  const inputEl = document.getElementById('spotify-search-input');
-  if (inputEl) inputEl.focus();
+  searchInputRef.value?.focus();
 });
 </script>
 
@@ -112,7 +113,7 @@ onMounted(() => {
         <div class="relative">
           <Search class="w-5 h-5 text-neutral-400 absolute left-4 top-1/2 -translate-y-1/2" />
           <input
-            id="spotify-search-input"
+            ref="searchInputRef"
             v-model="searchQuery"
             type="text"
             placeholder="Type artist, song, or album and press Enter..."

@@ -68,6 +68,7 @@ export async function extractArtworkColors(imageUrl: string): Promise<DominantCo
         resolve(result);
       } catch (err) {
         console.warn('[ColorExtractor] ColorThief failed or CORS issue, fallback to default', err);
+        colorCache.set(imageUrl, DEFAULT_COLORS);
         resolve(DEFAULT_COLORS);
       } finally {
         img.src = ''; // Cleanly release image resource from memory
@@ -76,6 +77,7 @@ export async function extractArtworkColors(imageUrl: string): Promise<DominantCo
 
     img.onerror = () => {
       img.src = '';
+      colorCache.set(imageUrl, DEFAULT_COLORS);
       resolve(DEFAULT_COLORS);
     };
   });

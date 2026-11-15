@@ -17,12 +17,11 @@ export const SPOTIFY_SCOPES = [
 ].join(' ');
 
 /**
- * Generate cryptographically secure random string for code verifier and state
+ * Generate cryptographically secure random string for code verifier and state (RFC 7636 Base64URL)
  */
-export function generateRandomString(length: number = 64): string {
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-  const values = crypto.getRandomValues(new Uint8Array(length));
-  return values.reduce((acc, x) => acc + possible[x % possible.length], '');
+export function generateRandomString(length: number = 48): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  return base64UrlEncode(bytes.buffer);
 }
 
 /**

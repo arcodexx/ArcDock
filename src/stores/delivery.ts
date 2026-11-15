@@ -82,7 +82,7 @@ const loadParcels = (): ParcelItem[] => {
     if (!Array.isArray(list)) return [];
     const seen = new Set<string>();
     return list.filter((p: any) => {
-      if (!p || !p.id || !p.trackingNumber || p.id === 'pkg-1' || p.id === 'pkg-2') return false;
+      if (!p || !p.id || !p.trackingNumber) return false;
       const key = p.trackingNumber.toLowerCase().trim();
       if (seen.has(key)) return false;
       seen.add(key);

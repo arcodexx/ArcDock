@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useSpotifyStore } from '@/stores/spotify';
+import { useNetworkStore } from '@/stores/network';
+import { useHomeAssistantStore } from '@/stores/homeAssistant';
+import { WIDGET_CATALOG } from '@/stores/favorites';
 import { useAmoledProtection } from '@/composables/useAmoledProtection';
 import { useRoomSync } from '@/composables/useRoomSync';
 import TopBar from '@/components/TopBar.vue';
@@ -27,9 +30,11 @@ import StandbyWorkHub from '@/components/hub/StandbyWorkHub.vue';
 import { Radio, Sparkles } from 'lucide-vue-next';
 
 const spotify = useSpotifyStore();
-useRoomSync();
+const networkStore = useNetworkStore();
+const ha = useHomeAssistantStore();
 
 const mode = ref<'desk' | 'car'>((localStorage.getItem('arcdock_mode') as 'desk' | 'car') || 'desk');
+useRoomSync(mode);
 
 type DrawerType = 'playlists' | 'queue' | 'devices' | 'settings' | 'search' | null;
 const activeDrawer = ref<DrawerType>(null);
@@ -39,9 +44,33 @@ const isControlCenterOpen = ref(false);
 type FullScreenTarget = 'weather' | 'github' | 'deliveries' | 'climate' | 'lights' | 'network' | null;
 const activeFullScreen = ref<FullScreenTarget>(null);
 
-
-
 const { isSleeping, wakeUp, pixelShift } = useAmoledProtection(() => !spotify.isPlaying);
+
+// ANTI-02: Suspend 10s network ping and 1s progress ticker during deep OLED sleep
+watch(isSleeping, (sleeping) => {
+  if (sleeping) {
+    networkStore.stopMonitoring();
+    spotify.stopPolling();
+  } else {
+    networkStore.startMonitoring();
+    if (spotify.isAuthenticated) {
+      spotify.startPolling();
+    }
+  }
+});
+
+// ANTI-03: Suspend Home Assistant WebSocket connection while in Car Mode
+watch(
+  mode,
+  (newMode) => {
+    if (newMode === 'car') {
+      ha.disconnect();
+    } else {
+      ha.connect();
+    }
+  },
+  { immediate: true }
+);
 
 const toggleMode = () => {
   mode.value = mode.value === 'desk' ? 'car' : 'desk';
@@ -81,22 +110,11 @@ const closeFullScreen = () => {
 };
 
 const getFullScreenMeta = computed(() => {
-  switch (activeFullScreen.value) {
-    case 'weather':
-      return { title: 'Desk Weather Station', subtitle: '24-hour & 7-day forecast via Open-Meteo' };
-    case 'github':
-      return { title: 'GitHub Developer Hub', subtitle: 'Contribution streak, activity heatmap & review requests' };
-    case 'deliveries':
-      return { title: 'Domestic Parcel Tracker', subtitle: 'Multi-carrier Indian courier package milestones' };
-    case 'climate':
-      return { title: 'SmartThings Room Climate', subtitle: 'AC temperature setpoint & HVAC modes' };
-    case 'lights':
-      return { title: 'Desk Lights & Scenes', subtitle: 'Smart lighting controls and ambient presets' };
-    case 'network':
-      return { title: 'Network Latency Monitor', subtitle: 'Real-time DNS ping and latency sparkline' };
-    default:
-      return { title: 'Desk Hub', subtitle: '' };
+  if (activeFullScreen.value && WIDGET_CATALOG[activeFullScreen.value]) {
+    const meta = WIDGET_CATALOG[activeFullScreen.value];
+    return { title: meta.title, subtitle: meta.subtitle };
   }
+  return { title: 'Desk Hub', subtitle: '' };
 });
 
 const handleKeyDown = (e: KeyboardEvent) => {

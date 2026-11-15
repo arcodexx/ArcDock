@@ -4,6 +4,119 @@ This log tracks all architectural discussions, technical decisions, completed st
 
 ---
 
+## Log Entry: 2026-11-15 (Entry 24)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Phase 5 Architectural Planning & Feature Roadmap Formulation (Calendar, Pomodoro, Habits, Timezones, Web Clipboard, Clock Skins)
+
+### 1. Planning Context & User Directives
+Following the completion of Phase 4 and the pre-deployment security/code review audit, an architectural discussion was held to define the next development horizon (Phase 5) for ArcDock. The overarching goal remains: maintaining ArcDock as a dedicated, non-distracting ambient hardware dock that reduces cognitive load without duplicating desktop task managers or phone notification traps.
+
+### 2. Evaluated & Rejected Proposals (Design Rationale)
+To ensure the dock does not suffer from feature bloat or duplicate existing tools, the following proposals were evaluated and explicitly discarded:
+1. **Desktop Hardware Monitors (CPU/RAM/GPU Telemetry):** Rejected. ArcDock is an ambient desk companion, not a second Activity Monitor/Task Manager.
+2. **Desk Sit/Stand Motorized Height Controller:** Rejected. Not relevant to user's hardware setup.
+3. **Ambient White Noise Machine:** Rejected. Unnecessary audio overhead; external sound belongs in Spotify.
+4. **Smart Doorbell / Camera Video Peek:** Rejected. Adds video streaming complexity and distracting alerts.
+5. **Asset & Financial Market Tickers (Crypto/Stocks):** Rejected. Distracting and counter-productive to focus.
+6. **VIP Notification Pager:** Rejected. Phones in pockets already handle urgent communication; keeps dock ambient.
+7. **Car GPS Speedometer & Compass HUD:** Rejected. Keeps Car Mode focused strictly on passenger music jukebox controls.
+8. **Stream Deck Mac Remote Shortcuts:** Rejected. Requires workstation companion daemons; violates zero-client-script principle.
+9. **EUR ↔ INR Currency Converter:** Rejected. Too specialized.
+10. **Event Milestone Countdown Pills:** Rejected. Redundant with Google Calendar.
+11. **Standalone Desk Calculator:** Rejected. Unnecessary on an ambient dock.
+12. **End-of-Day Standup Summarizer:** Rejected. Unnecessary automation.
+
+### 3. Approved Features & Architectural Specifications (Phase 5)
+
+1. **Zero-Credentials Google Calendar & Agenda Engine:**
+   - *Requirement:* Must sync meetings and schedule *without* logging into company Google credentials or enrolling the dock in corporate MDM.
+   - *Architecture:* Dual-mode ingestion:
+     - Mode A: Read-only Secret iCal (`.ics`) feed fetched via local proxy bridge and parsed client-side into chronological daily events.
+     - Mode B: Air-gapped local workstation LAN push (`POST /api/calendar/sync`) receiving sanitized JSON from the user's Mac over Wi-Fi.
+   - *Features:* Chronological timeline, current time line, and a "Pre-Meeting Radar" banner in `TopBar.vue` with 1-tap Google Meet / Zoom links when an event is `< 10 minutes` away.
+
+2. **Smart Desk Pomodoro Session Timer:**
+   - *Requirement:* Thumb-friendly touch countdown dial with Home Assistant integration; *strictly no automatic Spotify music resuming*.
+   - *Architecture:* State machine (`idle | focus | short_break | long_break`) with configurable intervals (25/5, 50/10).
+   - *Smart Home Link:* Focus session triggers `scene.focus` (cool white task lighting, AC focus setpoint); break triggers `scene.relax` (warm amber ambient lighting). Gentle browser Web Audio API transition chime.
+
+3. **Daily Habit & Ritual Tracker:**
+   - *Architecture:* Minimalist 1-tap touch cards stored locally in `localStorage['arcdock_habits']`.
+   - *Features:* Micro-habits (e.g. 2L Water, Workout, Read 15m) with an interactive 7-day GitHub-style visual dot streak right on the Standby Hub.
+
+4. **Fully Configurable World Clock & Team Timezone Ribbon:**
+   - *Requirement:* Completely customizable by user—not hardcoded to any specific region.
+   - *Architecture:* Users configure any city, IANA timezone (`Europe/Madrid`, `America/New_York`, `UTC`), and custom label (e.g., "Manager", "Tech Lead", "Client HQ").
+   - *Features:* Sleek horizontal ribbon with visual availability pills (`🟢 Working Hours [09:00–18:00]`, `🟡 Off Hours`, `🌙 Sleeping [23:00–09:00]`), synchronized to the 60-second wall-clock ticker.
+
+5. **Web-Based Shared LAN Clipboard (Zero-Script Cross-Device Sync):**
+   - *Requirement:* *Zero scripts, daemons, or apps* on Mac, Windows, or phone.
+   - *Architecture:* ArcDock serves a lightweight mobile-responsive web route at `/clip` (or static `public/clip.html`). Any device on the local network can open `http://<arcdock-ip>:3000/clip` to paste or copy text.
+   - *Features:* Real-time WebSocket sync with `useClipboardStore`. ArcDock displays current clipboard snippet, 1-tap `[ Copy ]` button, and rolling history of the last 5 clips (with 24h auto-expiration).
+
+6. **Ambient Screensaver Themes (Clock Skins) & Daily Mindset Quote:**
+   - *Theme Engine:* Swipeable clock themes on the OLED screensaver:
+     - *Theme 1:* Retro Flip Clock (mechanical split-flap desk clock with 3D transform animations).
+     - *Theme 2:* Word Clock (typographic matrix highlighting natural language phrases).
+     - *Theme 3:* Minimalist Typography Clock (pure AMOLED digital clock).
+   - *Quote Placement Solution:* To avoid consuming valuable favorite widget slots, a daily stoic/mindset quote is rendered directly beneath the screensaver clock in dimmed, low-contrast text (`#666666`). Conserves 100% AMOLED battery, eliminates burn-in risk, and provides glanceable reflection during idle desk periods.
+
+7. **Hardware Backlog (Pending Physical Sensor):**
+   - *Indoor Air Quality & CO2 Alert Card:* Postponed until user acquires a Zigbee/Wi-Fi air sensor.
+
+### 4. Documentation & Roadmap Synchronizations
+- Updated `docs/IMPLEMENTATION_PLAN.md` with full Step 5.1 through Step 5.7 breakdowns and component references.
+- Updated `docs/SYSTEM_SPEC.md` with complete Subsystem 6 architectural specifications, schemas, and design constraints.
+
+---
+
+## Log Entry: 2026-11-15 (Entry 23)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Code Review Audit Remediation: Security Hardening, Dead Code Removal, AMOLED Lifecycle & Ergonomics
+
+### 1. Remediations Implemented Across Codebase
+
+1. **Security & API Bridge Hardening (SEC-01 & SEC-02):**
+   - In `vite.config.ts`, added strict regex validation (`/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/`) and URI decoding on `/api/track/` requests before proxying to `shiptrack.aswincloud.com`, preventing SSRF and path traversal.
+   - Wired bridge middleware to both `configureServer` and `configurePreviewServer`.
+   - Created `docker/Caddyfile` with reverse-proxy rules for `/api/track/*` and `/api/carriers` and SPA file serving for production kiosks.
+
+2. **PIN Lock Security & Cooldown (SEC-04):**
+   - In `src/components/TopBar.vue`, removed the `(Default: 0000)` text leak on incorrect PIN entry.
+   - Added consecutive failure counter (`failedAttempts`) and automated 30-second lockout timer (`lockoutSeconds`) with countdown feedback and keypad disabling after 5 incorrect attempts.
+
+3. **Privacy-First GitHub Architecture (SEC-05, BUG-01, BUG-02):**
+   - Removed third-party scraping API (`jogruber.de`) completely from `src/stores/github.ts`. Unauthenticated mode now strictly communicates with official GitHub REST APIs.
+   - Resolved timezone skew bug in `calculateStreak()` by replacing UTC `toISOString()` with local date formatting (`getFullYear()`, `getMonth()`, `getDate()`).
+   - Expanded pull request search query to concurrently fetch and merge both authored PRs and review-requested PRs (`review-requested:${username}`).
+
+4. **Cryptographic Randomness (SEC-06):**
+   - In `src/services/pkce.ts`, replaced modulo mapping with direct RFC 7636 byte-to-Base64URL encoding (`base64UrlEncode(crypto.getRandomValues(new Uint8Array(48)).buffer)`), eliminating entropy bias.
+
+5. **Dead Code Elimination (DEAD-01 through DEAD-05):**
+   - Deleted orphaned components: `src/components/widgets/WidgetCardContainer.vue` and `src/components/widgets/QuickActionBar.vue`.
+   - Cleaned up legacy mock checks (`p.id === 'pkg-1' || p.id === 'pkg-2'`) in `src/stores/delivery.ts`.
+   - Created missing helper scripts: `scripts/launch-cage.sh` (Wayland kiosk launcher) and `scripts/battery-guardian.sh` (60%-70% charge hysteresis watchdog).
+   - Connected `WIDGET_CATALOG` in `src/App.vue` for dynamic full-screen view headers.
+
+6. **Concurrency & Lifecycle Optimization (ANTI-01, ANTI-02, ANTI-03, ANTI-04):**
+   - In `src/stores/spotify.ts`, wrapped `getValidToken()` in a shared `refreshPromise` mutex to prevent concurrent refresh requests from invalidating tokens.
+   - In `src/App.vue`, watched `isSleeping`: pauses 10s network ping monitoring and 1s Spotify progress interval during deep OLED sleep, resuming immediately upon touch wakeup.
+   - In `src/App.vue` and `src/composables/useRoomSync.ts`, suspended Home Assistant WebSocket and room sync dispatches during Car Mode, reconnecting when returning to Desk Mode.
+   - In `src/stores/homeAssistant.ts`, refactored `syncLightsToColor` to pass all active entity IDs in a single atomic `callService` array payload.
+
+7. **Touch Ergonomics & UI Polish (ANTI-05, ANTI-06, BUG-03, BUG-04):**
+   - Added CSS keyframes and animations for `@keyframes shake` and modal entry in `tailwind.config.js` and `src/style.css`.
+   - Replaced direct `document.getElementById` with Vue 3 template `ref` in `src/components/SearchDrawer.vue`.
+   - In `src/utils/colorExtractor.ts`, cached `DEFAULT_COLORS` on error/CORS failures to prevent repetitive network retry loops.
+   - In `src/components/NowPlaying.vue`, added vertical touch padding (`py-2.5 -my-2.5`) to expand progress bar hit area to ~35px without changing the visual 8px line.
+
+### 2. Verification
+- `npm run build` (`vue-tsc && vite build`) passed with 0 errors in 1.32s.
+- Bundle size: ~330.6 kB static (~94.2 kB gzipped).
+
+---
+
 ## Log Entry: 2026-11-15 (Entry 22)
 **Author:** Antigravity AI Assistant & Utkarsh  
 **Phase:** Auxiliary Widget Live Verification, GitHub Dual-Mode Heatmap, ShipTrack Free Parcel Tracking & Per-Track Manual Sync Architecture

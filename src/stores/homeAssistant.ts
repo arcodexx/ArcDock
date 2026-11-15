@@ -483,25 +483,29 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
     const targets = roomSyncConfig.value.targetEntityIds;
     if (!targets || targets.length === 0) return;
 
-    for (const entityId of targets) {
+    // INVIOLABLE SAFETY RULE: Only dispatch if the light is ALREADY ON!
+    const activeTargets = targets.filter((entityId) => {
       const entity = entities.value[entityId];
-      // INVIOLABLE SAFETY RULE: Only dispatch if the light is ALREADY ON!
-      if (!entity || entity.state !== 'on') {
-        continue;
-      }
+      return entity && entity.state === 'on';
+    });
 
-      if (isMockMode.value) {
-        entity.attributes.rgb_color = rgb;
-      } else if (connection) {
-        try {
-          await callService(connection, 'light', 'turn_on', {
-            entity_id: entityId,
-            rgb_color: rgb,
-            transition: 2,
-          });
-        } catch (e: any) {
-          console.error(`[ArcDock HA] Failed to sync light ${entityId} to album art:`, e);
+    if (activeTargets.length === 0) return;
+
+    if (isMockMode.value) {
+      for (const id of activeTargets) {
+        if (entities.value[id]?.attributes) {
+          entities.value[id].attributes.rgb_color = rgb;
         }
+      }
+    } else if (connection) {
+      try {
+        await callService(connection, 'light', 'turn_on', {
+          entity_id: activeTargets,
+          rgb_color: rgb,
+          transition: 2,
+        });
+      } catch (e: any) {
+        console.error('[ArcDock HA] Failed to sync lights to album art:', e);
       }
     }
   };

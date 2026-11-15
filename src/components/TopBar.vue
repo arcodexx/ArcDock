@@ -30,6 +30,9 @@ const showConfirmModal = ref(false);
 const showPinModal = ref(false);
 const enteredPin = ref('');
 const pinError = ref(false);
+const failedAttempts = ref(0);
+const lockoutSeconds = ref(0);
+let lockoutTimer: number | null = null;
 
 const updateClock = () => {
   const now = new Date();
@@ -72,9 +75,27 @@ onMounted(() => {
 onUnmounted(() => {
   if (minuteSyncTimeout) window.clearTimeout(minuteSyncTimeout);
   if (timer) window.clearInterval(timer);
+  if (lockoutTimer) window.clearInterval(lockoutTimer);
   weatherStore.stopPolling();
   networkStore.stopMonitoring();
 });
+
+const startLockout = (seconds: number = 30) => {
+  lockoutSeconds.value = seconds;
+  if (lockoutTimer) window.clearInterval(lockoutTimer);
+  lockoutTimer = window.setInterval(() => {
+    if (lockoutSeconds.value > 1) {
+      lockoutSeconds.value--;
+    } else {
+      lockoutSeconds.value = 0;
+      failedAttempts.value = 0;
+      if (lockoutTimer) {
+        window.clearInterval(lockoutTimer);
+        lockoutTimer = null;
+      }
+    }
+  }, 1000);
+};
 
 const handleModeClick = () => {
   if (props.mode === 'desk') {
@@ -99,6 +120,8 @@ const cancelModeSwitch = () => {
 
 // PIN Unlock Keypad Handlers
 const handlePinDigit = (digit: string) => {
+  if (lockoutSeconds.value > 0) return;
+
   if (enteredPin.value.length < 4) {
     enteredPin.value += digit;
     pinError.value = false;
@@ -108,9 +131,14 @@ const handlePinDigit = (digit: string) => {
       if (enteredPin.value === savedPin) {
         showPinModal.value = false;
         enteredPin.value = '';
+        failedAttempts.value = 0;
         emit('toggleMode');
       } else {
         pinError.value = true;
+        failedAttempts.value++;
+        if (failedAttempts.value >= 5) {
+          startLockout(30);
+        }
         setTimeout(() => {
           enteredPin.value = '';
           pinError.value = false;
@@ -121,6 +149,7 @@ const handlePinDigit = (digit: string) => {
 };
 
 const handlePinDelete = () => {
+  if (lockoutSeconds.value > 0) return;
   enteredPin.value = enteredPin.value.slice(0, -1);
   pinError.value = false;
 };
@@ -271,7 +300,7 @@ const cancelPinModal = () => {
             </div>
             <h3 class="text-sm font-extrabold text-white">Enter Desk PIN</h3>
             <p class="text-[11px] text-neutral-400">
-              {{ pinError ? 'Incorrect PIN (Default: 0000)' : 'Protected personal desk command center' }}
+              {{ lockoutSeconds > 0 ? `Too many attempts. Wait ${lockoutSeconds}s` : pinError ? 'Incorrect PIN. Try again' : 'Protected personal desk command center' }}
             </p>
           </div>
 
@@ -292,11 +321,12 @@ const cancelPinModal = () => {
           </div>
 
           <!-- Touch Number Keypad (3x4 Grid) with generous touch targets -->
-          <div class="grid grid-cols-3 gap-2 w-full pt-1">
+          <div class="grid grid-cols-3 gap-2 w-full pt-1" :class="{ 'opacity-50 pointer-events-none': lockoutSeconds > 0 }">
             <button
               v-for="n in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
               :key="n"
               @click="handlePinDigit(n)"
+              :disabled="lockoutSeconds > 0"
               class="h-11 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/20 text-white font-mono font-bold text-base flex items-center justify-center active:scale-95 transition-all cursor-pointer border border-white/5"
             >
               {{ n }}
@@ -312,6 +342,7 @@ const cancelPinModal = () => {
 
             <button
               @click="handlePinDigit('0')"
+              :disabled="lockoutSeconds > 0"
               class="h-11 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/20 text-white font-mono font-bold text-base flex items-center justify-center active:scale-95 transition-all cursor-pointer border border-white/5"
             >
               0
@@ -319,6 +350,7 @@ const cancelPinModal = () => {
 
             <button
               @click="handlePinDelete"
+              :disabled="lockoutSeconds > 0"
               class="h-11 rounded-2xl bg-white/5 hover:bg-white/10 active:bg-white/20 text-neutral-400 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
               title="Delete"
             >

@@ -1,0 +1,23 @@
+# ArcDock Production Kiosk Web Server (Caddy)
+# Serves static files with SPA fallback and proxies ShipTrack endpoints
+
+:3000 {
+    root * /opt/arcdock/dist
+    file_server
+
+    # Reverse proxy for ShipTrack to bypass CORS in production
+    handle_path /api/track/* {
+        reverse_proxy https://shiptrack.aswincloud.com {
+            header_up Host shiptrack.aswincloud.com
+        }
+    }
+
+    handle /api/carriers {
+        reverse_proxy https://shiptrack.aswincloud.com {
+            header_up Host shiptrack.aswincloud.com
+        }
+    }
+
+    # SPA client routing fallback
+    try_files {path} /index.html
+}

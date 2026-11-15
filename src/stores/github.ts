@@ -70,6 +70,13 @@ export const useGitHubStore = defineStore('github', () => {
     fetchData();
   };
 
+  const formatLocalDate = (d: Date = new Date()): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Helper to calculate daily streak from sorted chronological daily contribution list
   const calculateStreak = (days: { date: string; count: number }[]): number => {
     if (!days || days.length === 0) return 0;
@@ -77,9 +84,9 @@ export const useGitHubStore = defineStore('github', () => {
     // Sort descending by date (most recent first)
     const sorted = [...days].sort((a, b) => b.date.localeCompare(a.date));
     const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
-    const yesterdayDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const yesterdayStr = yesterdayDate.toISOString().slice(0, 10);
+    const todayStr = formatLocalDate(now);
+    const yesterdayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const yesterdayStr = formatLocalDate(yesterdayDate);
 
     let streak = 0;
     let expectedDate = todayStr;
@@ -95,10 +102,10 @@ export const useGitHubStore = defineStore('github', () => {
       if (d.date === expectedDate) {
         if (d.count > 0) {
           streak++;
-          // Decrement expectedDate by 1 day
-          const curD = new Date(expectedDate + 'T00:00:00Z');
-          curD.setUTCDate(curD.getUTCDate() - 1);
-          expectedDate = curD.toISOString().slice(0, 10);
+          // Decrement expectedDate by 1 day using local date
+          const [y, m, dt] = expectedDate.split('-').map(Number);
+          const prevDate = new Date(y, m - 1, dt - 1);
+          expectedDate = formatLocalDate(prevDate);
         } else {
           break;
         }
@@ -229,7 +236,7 @@ export const useGitHubStore = defineStore('github', () => {
     });
 
     // Today's commits
-    const nowIso = new Date().toISOString().slice(0, 10);
+    const nowIso = formatLocalDate(new Date());
     const todayMatch = allDays.find((d) => d.date === nowIso);
     todayCommits.value = todayMatch?.contributionCount || (last14[last14.length - 1]?.contributionCount || 0);
 
@@ -292,97 +299,61 @@ export const useGitHubStore = defineStore('github', () => {
       console.warn('[GitHub] REST repos fetch failed:', e);
     }
 
-    // 3. Fetch exact public contribution calendar from jogruber API
-    let calendarLoaded = false;
+    // 3. Calculate 14-day activity from official GitHub events API
     try {
-      const calRes = await fetch(`https://github-contributions-api.jogruber.de/v4/${username.value}?y=last`);
-      if (calRes.ok) {
-        const calData = await calRes.json();
-        if (calData.contributions && Array.isArray(calData.contributions)) {
-          const contribs: { date: string; count: number }[] = calData.contributions;
-          const last14 = contribs.slice(-14);
-          contributionGrid.value = last14.map((d) => d.count);
+      const eventsRes = await fetch(`https://api.github.com/users/${username.value}/events?per_page=100`, { headers });
+      if (eventsRes.ok) {
+        const events = await eventsRes.json();
+        const now = new Date();
+        const todayStr = formatLocalDate(now);
+        let commitCount = 0;
 
-          recentContributions.value = last14.map((d) => {
-            const dt = new Date(d.date + 'T00:00:00Z');
-            return {
-              date: d.date,
-              displayDate: dt.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-              dayName: dt.toLocaleDateString([], { weekday: 'narrow' }),
-              count: d.count,
-            };
-          });
+        const grid = new Array(14).fill(0);
+        const daysMap: Record<string, number> = {};
+        const dailyItems: { date: string; count: number }[] = [];
 
-          const nowIso = new Date().toISOString().slice(0, 10);
-          const todayMatch = contribs.find((d) => d.date === nowIso);
-          todayCommits.value = todayMatch?.count || (last14[last14.length - 1]?.count || 0);
-
-          if (userProfile.value && calData.total?.lastYear) {
-            userProfile.value.totalContributionsYear = calData.total.lastYear;
-          }
-
-          streakDays.value = calculateStreak(contribs);
-          calendarLoaded = true;
+        for (let i = 0; i < 14; i++) {
+          const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (13 - i));
+          const key = formatLocalDate(d);
+          daysMap[key] = i;
+          dailyItems.push({ date: key, count: 0 });
         }
-      }
-    } catch (e) {
-      console.warn('[GitHub] Public contributions calendar API failed, falling back to events:', e);
-    }
 
-    // Fallback: Calculate from events if calendar API fails
-    if (!calendarLoaded) {
-      try {
-        const eventsRes = await fetch(`https://api.github.com/users/${username.value}/events?per_page=100`, { headers });
-        if (eventsRes.ok) {
-          const events = await eventsRes.json();
-          const now = new Date();
-          const todayStr = now.toISOString().slice(0, 10);
-          let commitCount = 0;
+        if (Array.isArray(events)) {
+          for (const ev of events) {
+            if (!ev.created_at) continue;
+            const eventDate = new Date(ev.created_at);
+            const dateKey = formatLocalDate(eventDate);
+            const count = ev.type === 'PushEvent' ? (ev.payload?.commits?.length || 1) : 1;
 
-          const grid = new Array(14).fill(0);
-          const daysMap: Record<string, number> = {};
-          const dailyItems: { date: string; count: number }[] = [];
+            if (ev.type === 'PushEvent' && dateKey === todayStr) {
+              commitCount += count;
+            }
 
-          for (let i = 0; i < 14; i++) {
-            const d = new Date(now.getTime() - (13 - i) * 24 * 60 * 60 * 1000);
-            const key = d.toISOString().slice(0, 10);
-            daysMap[key] = i;
-            dailyItems.push({ date: key, count: 0 });
-          }
-
-          if (Array.isArray(events)) {
-            for (const ev of events) {
-              const dateKey = ev.created_at?.slice(0, 10);
-              const count = ev.type === 'PushEvent' ? (ev.payload?.commits?.length || 1) : 1;
-
-              if (ev.type === 'PushEvent' && dateKey === todayStr) {
-                commitCount += count;
-              }
-
-              if (dateKey && daysMap[dateKey] !== undefined) {
-                grid[daysMap[dateKey]] += count;
-                dailyItems[daysMap[dateKey]].count += count;
-              }
+            if (dateKey && daysMap[dateKey] !== undefined) {
+              grid[daysMap[dateKey]] += count;
+              dailyItems[daysMap[dateKey]].count += count;
             }
           }
-
-          todayCommits.value = commitCount;
-          contributionGrid.value = grid;
-          recentContributions.value = dailyItems.map((d) => {
-            const dt = new Date(d.date + 'T00:00:00Z');
-            return {
-              date: d.date,
-              displayDate: dt.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-              dayName: dt.toLocaleDateString([], { weekday: 'narrow' }),
-              count: d.count,
-            };
-          });
-
-          streakDays.value = calculateStreak(dailyItems);
         }
-      } catch (e) {
-        console.warn('[GitHub] Events fallback failed:', e);
+
+        todayCommits.value = commitCount;
+        contributionGrid.value = grid;
+        recentContributions.value = dailyItems.map((d) => {
+          const [y, m, dt] = d.date.split('-').map(Number);
+          const localD = new Date(y, m - 1, dt);
+          return {
+            date: d.date,
+            displayDate: localD.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+            dayName: localD.toLocaleDateString([], { weekday: 'narrow' }),
+            count: d.count,
+          };
+        });
+
+        streakDays.value = calculateStreak(dailyItems);
       }
+    } catch (e) {
+      console.warn('[GitHub] Official events fetch failed:', e);
     }
   };
 
@@ -412,27 +383,41 @@ export const useGitHubStore = defineStore('github', () => {
       const headers: Record<string, string> = { Accept: 'application/vnd.github.v3+json' };
       if (token.value) headers.Authorization = `Bearer ${token.value}`;
 
-      // Search user's authored PRs + review requested
-      const prsRes = await fetch(
-        `https://api.github.com/search/issues?q=type:pr+state:open+author:${username.value}`,
-        { headers }
-      );
+      const [authoredRes, reviewRes] = await Promise.allSettled([
+        fetch(`https://api.github.com/search/issues?q=type:pr+state:open+author:${username.value}`, { headers }),
+        fetch(`https://api.github.com/search/issues?q=type:pr+state:open+review-requested:${username.value}`, { headers }),
+      ]);
 
-      if (prsRes.ok) {
-        const prData = await prsRes.json();
-        pendingPrs.value = prData.total_count ?? 0;
-        if (prData.items && Array.isArray(prData.items)) {
-          prList.value = prData.items.slice(0, 10).map((it: any) => ({
-            id: it.id,
-            title: it.title,
-            repo: it.repository_url?.split('/').slice(-2).join('/') || 'repo',
-            author: it.user?.login || 'user',
-            url: it.html_url,
-            updatedAt: new Date(it.updated_at).toLocaleDateString([], { month: 'short', day: 'numeric' }),
-            state: it.state,
-          }));
+      const itemsMap = new Map<number, any>();
+
+      if (authoredRes.status === 'fulfilled' && authoredRes.value.ok) {
+        const authoredData = await authoredRes.value.json();
+        if (authoredData.items && Array.isArray(authoredData.items)) {
+          for (const it of authoredData.items) {
+            itemsMap.set(it.id, it);
+          }
         }
       }
+
+      if (reviewRes.status === 'fulfilled' && reviewRes.value.ok) {
+        const reviewData = await reviewRes.value.json();
+        if (reviewData.items && Array.isArray(reviewData.items)) {
+          for (const it of reviewData.items) {
+            itemsMap.set(it.id, it);
+          }
+        }
+      }
+
+      pendingPrs.value = itemsMap.size;
+      prList.value = Array.from(itemsMap.values()).slice(0, 10).map((it: any) => ({
+        id: it.id,
+        title: it.title,
+        repo: it.repository_url?.split('/').slice(-2).join('/') || 'repo',
+        author: it.user?.login || 'user',
+        url: it.html_url,
+        updatedAt: new Date(it.updated_at).toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        state: it.state,
+      }));
     } catch (err: any) {
       console.warn('[GitHub] Global fetch error:', err);
       error.value = 'Failed to load GitHub data.';

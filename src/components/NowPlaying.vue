@@ -96,12 +96,14 @@ const handleProgressBarClick = (event: MouseEvent) => {
         <div class="space-y-1 select-none">
           <div
             @click="handleProgressBarClick"
-            class="h-2 w-full bg-white/15 rounded-full overflow-hidden cursor-pointer relative group flex items-center"
+            class="py-2.5 -my-2.5 w-full cursor-pointer relative group flex items-center"
           >
-            <div
-              class="h-full bg-white group-hover:bg-spotify-light rounded-full transition-all duration-150 relative"
-              :style="{ width: `${progressPercent}%` }"
-            ></div>
+            <div class="h-2 w-full bg-white/15 rounded-full overflow-hidden relative">
+              <div
+                class="h-full bg-white group-hover:bg-spotify-light rounded-full transition-all duration-150 relative"
+                :style="{ width: `${progressPercent}%` }"
+              ></div>
+            </div>
           </div>
           <div class="flex justify-between text-[10px] sm:text-xs font-semibold text-neutral-400 font-mono">
             <span>{{ formatDuration(spotify.playback?.progress_ms || 0) }}</span>

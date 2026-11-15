@@ -418,6 +418,100 @@ Rather than cramming API keys and city searches into a distant centralized setti
 
 ---
 
+### Subsystem 6: Desk Productivity, Shared LAN Utilities & Ambient Themes (Phase 5)
+
+#### 1. Zero-Credentials Google Calendar & Agenda Engine (`calendar.ts` & `CalendarView.vue`)
+* **The Corporate Privacy Challenge:**
+  * When using a company-issued Google account, signing into Google directly on a personal repurposed phone or kiosk browser triggers corporate MDM (Mobile Device Management) policies, device enrollment prompts, or Google Workspace security blocks.
+* **The Air-Gapped Architectural Solution:**
+  * ArcDock operates with **zero corporate credentials** on the device via a dual-mode ingestion engine:
+    1. **Mode A: Read-Only Private iCal (.ics URL):**
+       * Users copy the standard "Secret address in iCal format" from their Google Calendar Web settings (`https://calendar.google.com/calendar/ical/<user>/private-<key>/basic.ics`).
+       * ArcDock fetches the raw text feed via a local server bridge (Vite in dev, Caddy in prod) and parses `VEVENT` objects client-side using a zero-dependency/lightweight calendar parser.
+       * Extracts: `summary` (title), `dtstart`, `dtend`, `location`, `description`, and auto-detects Google Meet / Zoom / Teams video URLs (`/https:\/\/(meet\.google\.com|.*\.zoom\.us|teams\.microsoft\.com)\/[^\s]+/`).
+    2. **Mode B: Local Workstation LAN Push (`POST /api/calendar/sync`):**
+       * For companies where external iCal sharing is strictly disabled by Workspace admin policies, a 10-line shell/AppleScript or Raycast script running on the user's authenticated work laptop queries the native macOS Calendar and pushes today's schedule as sanitized JSON to ArcDock's IP on the home Wi-Fi:
+         ```json
+         [
+           { "title": "Design Sync", "start": "2026-11-15T10:00:00+05:30", "end": "2026-11-15T10:30:00+05:30", "meetUrl": "https://meet.google.com/abc-defg-hij" }
+         ]
+         ```
+       * 100% air-gapped: ArcDock merely renders dumb local JSON.
+* **Pre-Meeting Radar & UI Display:**
+  * **Pre-Meeting Radar:** A visual countdown banner appears in `TopBar.vue` and Standby Hub when an event begins in `< 10 minutes` (*"Design Sync in 8m [ 📹 Join ]"*).
+  * **Full-Screen Agenda View (`CalendarView.vue`):** Chronological timeline with a red horizontal line marking the current time, completed event dimming, and an in-context `[ ⚙️ Calendar Source ]` drawer.
+
+#### 2. Smart Desk Pomodoro Timer with Home Assistant Scene Automation (`pomodoro.ts` & `PomodoroView.vue`)
+* **State Machine:**
+  * Modes: `idle` | `focus` | `short_break` | `long_break`.
+  * Configurable intervals: Default 25m Focus / 5m Break; 50m Focus / 10m Break.
+  * Local counters: Completed intervals today, total focus minutes today.
+  * *Strict Design Constraint:* No automatic Spotify playlist resuming (music control remains manual).
+* **Smart Home Synergy (Lighting & Climate Automation):**
+  * When a Focus session starts:
+    * Queries `useHomeAssistantStore` and activates the user-configured Focus Scene (`callService('scene', 'turn_on', { entity_id: 'scene.focus' })`) or dims ambient background strips and tunes the desk monitor lightbar to crisp cool-white (`4000K`), with AC comfort setpoint.
+  * When a Break session starts:
+    * Automatically triggers Relax Scene (`scene.relax`) switching room lighting to soft warm amber (`2700K`).
+  * Gentle audio chime on transition via the browser Web Audio API oscillator.
+
+#### 3. Daily Habit & Goal Tracker (`habits.ts` & `HabitsView.vue`)
+* **Objective:** Replace phone habit apps that trigger notification distraction with an ambient, physical 1-tap desk ritual tracker.
+* **Data Model:**
+  ```typescript
+  interface Habit {
+    id: string;
+    title: string;          // e.g. "2L Water", "Workout", "Read 15m"
+    icon: string;           // emoji or Lucide icon
+    completedDates: string[]; // ['2026-11-15', '2026-11-14', ...]
+    streakDays: number;
+  }
+  ```
+* **UI Pattern:**
+  * **Compact Habit Card (`HabitCard.vue`):** Pinned on Standby Hub or Favorites panel. Touch-friendly check boxes with instant visual completion state.
+  * **GitHub-Style 7-Day Dot Streak:** Displays a mini row of 7 colored dots representing the last week of consistency.
+  * **Full-Screen Station (`HabitsView.vue`):** Manage habits, view monthly completion calendar, and configure reset schedules.
+
+#### 4. Configurable World Clock & Team Timezone Ribbon (`timezones.ts` & `TimezoneBar.vue`)
+* **Objective:** Instant glanceable awareness of remote team member, client, or manager working hours without mental UTC calculations.
+* **Custom Slot Model:**
+  * Users can configure arbitrary cities, IANA timezones (e.g. `Europe/Madrid`, `America/New_York`, `UTC`), and custom labels (e.g. *"Manager (Spain)"*, *"Tech Lead"*, *"Client HQ"*).
+* **Dynamic Availability State:**
+  * `🟢 Active Work` (09:00 - 18:00 local destination time): Green indicator.
+  * `🟡 Off Hours / Evening` (18:00 - 23:00 local destination time): Amber indicator.
+  * `🌙 Sleeping / Night` (23:00 - 09:00 local destination time): Indigo moon indicator.
+* **Sync & Performance:** Tied to the central 60-second synchronized clock tick, producing zero background CPU thrashing.
+
+#### 5. Web-Based Shared LAN Clipboard Architecture (`clipboard.ts` & `/clip` route)
+* **The "Zero Third-Party Apps & Zero Client Scripts" Rule:**
+  * Users should NOT be forced to install companion daemons, raycast extensions, or background scripts on laptops or secondary phones.
+* **The Implementation:**
+  * ArcDock exposes a lightweight mobile-responsive browser page at `/clip` (or static `public/clip.html`).
+  * On a Mac, Windows PC, or iPhone/Android phone connected to the same Wi-Fi, open `http://<arcdock-ip>:3000/clip`.
+  * The page provides a clean, autofocus text box with:
+    * `[ Paste & Send to ArcDock ]`
+    * `[ Copy Current ArcDock Clip ]`
+  * Real-time bi-directional WebSocket connection between `/clip` web clients and the ArcDock frontend store (`useClipboardStore`).
+  * Text pasted on any browser tab instantly syncs to the ArcDock screen with a large 1-tap `[ Copy ]` button and a rolling history of the last 5 clips (with auto-clear after 24h for security).
+
+#### 6. Ambient Screensaver Themes (Clock Skins) & Daily Mindset Quote
+* **Themeable AMOLED Screensaver (`OledScreensaver.vue`):**
+  * When paused/idle for > 5 minutes, ArcDock transitions to the OLED screensaver with user-selected clock themes:
+    1. **Retro Flip Clock:** Mechanical split-flap desk clock with 3D card-flip animations.
+    2. **Word Clock:** Typographic word-search matrix highlighting natural language phrases.
+    3. **Minimalist Typography Clock:** High-contrast pure `#000000` modern digital clock.
+  * Theme switching via simple horizontal swipe across the screen while in sleep mode.
+* **Daily Mindset / Stoic Quote on Screensaver:**
+  * **Zero Widget Slot Penalty:** Daily motivational/stoic thoughts do not steal a functional dashboard slot; instead, they render directly beneath the clock face on the OLED screensaver.
+  * Displayed in dimmed, low-contrast typography (`#666666`), ensuring pixels remain unlit/energy-efficient with zero OLED burn-in risk.
+  * Reads from a curated offline quotes collection (`src/data/quotes.json`), rotating daily or upon tapping the quote.
+
+#### 7. Future Hardware Backlog: Indoor Air Quality & CO2 Alert
+* **Status:** On hold pending acquisition of physical Zigbee/Wi-Fi air sensor.
+* **Entity Mapping:** Connects to Home Assistant `sensor.*_co2`, `sensor.*_voc`.
+* **Visual Thresholds:** `< 800 ppm` (Fresh 🟢), `800–1400 ppm` (Elevated 🟡), `> 1400 ppm` (Ventilate Room 🔴).
+
+---
+
 ## 5. Security & Privacy
 1. **Local-First & Client-Side:** No intermediary cloud server. ArcDock communicates directly between the browser and Spotify's official servers.
 2. **Tokens Storage:** OAuth tokens and Client ID are stored in the browser's `localStorage` (`arcdock_spotify_tokens`, `arcdock_spotify_client_id`).
