@@ -25,13 +25,30 @@ import DeliveryView from '@/components/views/DeliveryView.vue';
 import ClimateView from '@/components/views/ClimateView.vue';
 import LightsView from '@/components/views/LightsView.vue';
 import NetworkView from '@/components/views/NetworkView.vue';
+import CalendarView from '@/components/views/CalendarView.vue';
+import PomodoroView from '@/components/views/PomodoroView.vue';
+import HabitsView from '@/components/views/HabitsView.vue';
+import TimezoneView from '@/components/views/TimezoneView.vue';
+import ClipboardView from '@/components/views/ClipboardView.vue';
 import FavoriteWidgetsPanel from '@/components/FavoriteWidgetsPanel.vue';
 import StandbyWorkHub from '@/components/hub/StandbyWorkHub.vue';
-import { Radio, Sparkles } from 'lucide-vue-next';
+import { useClipboardStore } from '@/stores/clipboard';
+import { useScreensaverStore } from '@/stores/screensaver';
+import { Radio, Clipboard } from 'lucide-vue-next';
 
 const spotify = useSpotifyStore();
 const networkStore = useNetworkStore();
 const ha = useHomeAssistantStore();
+const clipboardStore = useClipboardStore();
+const screensaverStore = useScreensaverStore();
+
+onMounted(() => {
+  clipboardStore.startPolling();
+});
+
+onUnmounted(() => {
+  clipboardStore.stopPolling();
+});
 
 const mode = ref<'desk' | 'car'>((localStorage.getItem('arcdock_mode') as 'desk' | 'car') || 'desk');
 useRoomSync(mode);
@@ -41,7 +58,19 @@ const activeDrawer = ref<DrawerType>(null);
 
 // Control Center & Full Screen View State
 const isControlCenterOpen = ref(false);
-type FullScreenTarget = 'weather' | 'github' | 'deliveries' | 'climate' | 'lights' | 'network' | null;
+type FullScreenTarget =
+  | 'weather'
+  | 'github'
+  | 'deliveries'
+  | 'climate'
+  | 'lights'
+  | 'network'
+  | 'calendar'
+  | 'pomodoro'
+  | 'habits'
+  | 'timezones'
+  | 'clipboard'
+  | null;
 const activeFullScreen = ref<FullScreenTarget>(null);
 
 const { isSleeping, wakeUp, pixelShift } = useAmoledProtection(() => !spotify.isPlaying);
@@ -107,6 +136,11 @@ const handleOpenFullScreen = (target: NonNullable<FullScreenTarget>) => {
 
 const closeFullScreen = () => {
   activeFullScreen.value = null;
+};
+
+const handleScreensaverWake = () => {
+  screensaverStore.closePreview();
+  wakeUp();
 };
 
 const getFullScreenMeta = computed(() => {
@@ -188,37 +222,35 @@ onUnmounted(() => {
             />
 
             <!-- Dual-State Left Canvas: Active Playing vs Paused Standby -->
-            <template v-if="spotify.isAuthenticated">
-              <!-- Active Playing State (or Car Mode): Spotify Remote ONLY -->
-              <NowPlaying v-if="mode === 'car' || spotify.isPlaying" />
+            <!-- If Car Mode and authenticated: NowPlaying -->
+            <NowPlaying v-if="mode === 'car' && spotify.isAuthenticated" />
 
-              <!-- Paused Standby Hub State: Only in Desk Mode when Paused -->
-              <StandbyWorkHub v-else />
-            </template>
+            <!-- If Desk Mode and actively playing: NowPlaying -->
+            <NowPlaying v-else-if="spotify.isAuthenticated && spotify.isPlaying" />
 
-            <!-- Welcome / Setup View when not yet authenticated -->
+            <!-- In Desk Mode (whether Spotify is connected or not): Standby Work Hub -->
+            <StandbyWorkHub
+              v-else-if="mode === 'desk'"
+              @open-settings="toggleDrawer('settings')"
+              @open-full-screen="handleOpenFullScreen"
+            />
+
+            <!-- Car Mode when Spotify not yet connected -->
             <div
               v-else
-              class="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6 max-w-lg mx-auto"
+              class="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4 max-w-sm mx-auto"
             >
-              <div class="w-24 h-24 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-spotify-green shadow-2xl">
-                <Radio class="w-12 h-12" />
+              <div class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-spotify-green shadow-xl">
+                <Radio class="w-8 h-8" />
               </div>
-
-              <div class="space-y-2">
-                <h1 class="text-3xl font-extrabold text-white tracking-tight flex items-center justify-center gap-2">
-                  ArcDock <Sparkles class="w-6 h-6 text-amber-400" />
-                </h1>
-                <p class="text-sm text-neutral-400">
-                  Smart Glass Remote & Dashboard. Connect your Spotify account to control playback on your MacBook, phone, or car audio.
-                </p>
-              </div>
-
+              <p class="text-xs text-neutral-400">
+                Connect your Spotify account to control car playback.
+              </p>
               <button
                 @click="toggleDrawer('settings')"
-                class="px-8 py-4 rounded-2xl bg-spotify-green hover:bg-spotify-light text-black font-bold text-base tracking-wide active:scale-95 transition-all shadow-xl shadow-spotify-green/20 cursor-pointer"
+                class="px-6 py-2.5 rounded-xl bg-spotify-green hover:bg-spotify-light text-black font-bold text-xs tracking-wide active:scale-95 transition-all cursor-pointer"
               >
-                Connect Spotify Account
+                Connect Spotify
               </button>
             </div>
           </div>
@@ -264,6 +296,11 @@ onUnmounted(() => {
       <ClimateView v-if="activeFullScreen === 'climate'" />
       <LightsView v-if="activeFullScreen === 'lights'" />
       <NetworkView v-if="activeFullScreen === 'network'" />
+      <CalendarView v-if="activeFullScreen === 'calendar'" />
+      <PomodoroView v-if="activeFullScreen === 'pomodoro'" />
+      <HabitsView v-if="activeFullScreen === 'habits'" />
+      <TimezoneView v-if="activeFullScreen === 'timezones'" />
+      <ClipboardView v-if="activeFullScreen === 'clipboard'" />
     </FullScreenView>
 
     <!-- Slide-over Drawers & Modals (Mutually Exclusive) -->
@@ -282,7 +319,20 @@ onUnmounted(() => {
       @update-mode="setMode"
     />
 
+    <!-- Compact Top-Center LAN Clipboard Notification Pill -->
+    <button
+      v-if="clipboardStore.toast"
+      @click="activeFullScreen = 'clipboard'; clipboardStore.dismissToast()"
+      class="fixed top-2.5 left-1/2 -translate-x-1/2 z-[200] max-w-[85vw] sm:max-w-md bg-neutral-900/95 border border-violet-500/50 shadow-xl shadow-black/60 rounded-full py-1 px-3 flex items-center gap-2 backdrop-blur-md cursor-pointer animate-in fade-in slide-in-from-top-2 duration-200 hover:border-violet-400"
+    >
+      <div class="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse shrink-0"></div>
+      <Clipboard class="w-3.5 h-3.5 text-violet-300 shrink-0" />
+      <span class="text-[11px] font-bold text-white truncate shrink-0">{{ clipboardStore.toast.device }}:</span>
+      <span class="text-[11px] text-neutral-300 font-mono truncate max-w-[150px] sm:max-w-[220px]">{{ clipboardStore.toast.text }}</span>
+      <span class="text-[9px] text-violet-400 font-mono font-bold uppercase shrink-0">Tap to view</span>
+    </button>
+
     <!-- OLED True-Black Screensaver (Ambient Clock) -->
-    <OledScreensaver v-if="isSleeping" @wake="wakeUp" />
+    <OledScreensaver v-if="isSleeping || screensaverStore.isPreviewing" @wake="handleScreensaverWake" />
   </main>
 </template>

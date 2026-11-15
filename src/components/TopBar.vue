@@ -2,20 +2,23 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useWeatherStore } from '@/stores/weather';
 import { useNetworkStore } from '@/stores/network';
+import { useCalendarStore } from '@/stores/calendar';
+import { usePomodoroStore } from '@/stores/pomodoro';
 import {
   Settings,
   Armchair,
   Car,
   CloudSun,
   Lock,
-  Delete
+  Delete,
+  Timer
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
   (e: 'openSettings'): void;
   (e: 'toggleMode'): void;
   (e: 'openControlCenter'): void;
-  (e: 'openFullScreen', target: 'weather' | 'network'): void;
+  (e: 'openFullScreen', target: 'weather' | 'network' | 'calendar' | 'pomodoro'): void;
 }>();
 
 const props = defineProps<{
@@ -24,6 +27,8 @@ const props = defineProps<{
 
 const weatherStore = useWeatherStore();
 const networkStore = useNetworkStore();
+const calendarStore = useCalendarStore();
+const pomodoroStore = usePomodoroStore();
 
 const currentTime = ref('');
 const showConfirmModal = ref(false);
@@ -64,6 +69,7 @@ onMounted(() => {
   updateClock();
   weatherStore.startPolling();
   networkStore.startMonitoring();
+  calendarStore.fetchCalendar();
 
   const msToNextMinute = (60 - new Date().getSeconds()) * 1000;
   minuteSyncTimeout = window.setTimeout(() => {
@@ -192,6 +198,40 @@ const cancelPinModal = () => {
       >
         <CloudSun class="w-3.5 h-3.5 text-sky-400" />
         <span>{{ weatherStore.weather?.currentTemp ?? 25 }}°C</span>
+      </button>
+
+      <!-- Pre-Meeting Radar Alert Pill (Desk Mode ONLY) -->
+      <button
+        v-if="mode === 'desk' && calendarStore.radarEvent"
+        @click="emit('openFullScreen', 'calendar')"
+        class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm border"
+        :class="calendarStore.radarEvent.isOngoing
+          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse'
+          : 'bg-amber-500/20 text-amber-300 border-amber-500/40'"
+        :title="`Upcoming Meeting: ${calendarStore.radarEvent.title} (Tap to view agenda)`"
+      >
+        <span class="w-2 h-2 rounded-full shrink-0" :class="calendarStore.radarEvent.isOngoing ? 'bg-emerald-400' : 'bg-amber-400'" />
+        <span class="max-w-[90px] sm:max-w-[130px] truncate text-[11px] font-bold">{{ calendarStore.radarEvent.title }}</span>
+        <span class="font-mono text-[10px] font-bold px-1 rounded bg-black/40">
+          {{ calendarStore.radarEvent.isOngoing ? 'Now' : `${calendarStore.radarEvent.minutesUntil}m` }}
+        </span>
+      </button>
+
+      <!-- Active Pomodoro Focus/Break Pill (Desk Mode ONLY) -->
+      <button
+        v-if="mode === 'desk' && pomodoroStore.phase !== 'idle'"
+        @click="emit('openFullScreen', 'pomodoro')"
+        class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm border"
+        :class="pomodoroStore.phase === 'focus'
+          ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+          : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'"
+        :title="`Pomodoro ${pomodoroStore.phaseLabel}: ${pomodoroStore.formattedTime}`"
+      >
+        <Timer class="w-3.5 h-3.5 shrink-0" :class="{ 'animate-pulse': pomodoroStore.isRunning }" />
+        <span class="font-mono text-[11px] font-bold">{{ pomodoroStore.formattedTime }}</span>
+        <span class="text-[9px] uppercase font-bold px-1 rounded bg-black/40 hidden xs:inline">
+          {{ pomodoroStore.phase === 'focus' ? 'Focus' : 'Break' }}
+        </span>
       </button>
     </div>
 

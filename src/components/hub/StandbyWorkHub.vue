@@ -3,17 +3,30 @@ import { computed } from 'vue';
 import { useSpotifyStore } from '@/stores/spotify';
 import { useGitHubStore } from '@/stores/github';
 import { useDeliveryStore } from '@/stores/delivery';
+import { useCalendarStore } from '@/stores/calendar';
+import { usePomodoroStore } from '@/stores/pomodoro';
 import {
   Play,
+  Pause,
+  Timer,
   Github,
   GitPullRequest,
   Package,
-  RefreshCw
+  RefreshCw,
+  Calendar,
+  Radio
 } from 'lucide-vue-next';
+
+const emit = defineEmits<{
+  (e: 'openSettings'): void;
+  (e: 'openFullScreen', target: 'github' | 'deliveries' | 'calendar' | 'pomodoro'): void;
+}>();
 
 const spotify = useSpotifyStore();
 const github = useGitHubStore();
 const delivery = useDeliveryStore();
+const calendar = useCalendarStore();
+const pomodoro = usePomodoroStore();
 
 const lastTrackTitle = computed(() => {
   return spotify.currentTrack?.name || 'Music';
@@ -38,11 +51,60 @@ const handleResume = () => {
   <div class="h-full w-full flex flex-col justify-between p-3 sm:p-4 select-none overflow-hidden relative bg-black/60 backdrop-blur-md">
     <!-- Top & Middle: Work & Logistics Overview -->
     <div class="flex-1 overflow-y-auto space-y-2.5 no-scrollbar">
+      <!-- Section 0.5: Active Focus Session / Pomodoro -->
+      <div
+        v-if="pomodoro.phase !== 'idle'"
+        @click="emit('openFullScreen', 'pomodoro')"
+        class="p-3 rounded-2xl border space-y-1.5 transition-all cursor-pointer hover:border-rose-400/50"
+        :class="pomodoro.phase === 'focus'
+          ? 'bg-rose-950/30 border-rose-500/40'
+          : 'bg-emerald-950/30 border-emerald-500/40'"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div
+              class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+              :class="pomodoro.phase === 'focus' ? 'bg-rose-500/20 text-rose-300' : 'bg-emerald-500/20 text-emerald-300'"
+            >
+              <Timer class="w-4 h-4" :class="{ 'animate-pulse': pomodoro.isRunning }" />
+            </div>
+            <div>
+              <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>{{ pomodoro.phaseLabel }}</span>
+                <span class="text-[10px] font-mono opacity-80">({{ pomodoro.completedSessions }} completed)</span>
+              </div>
+              <div class="text-[10px] text-neutral-400 font-mono">
+                {{ pomodoro.isRunning ? 'Countdown active' : 'Paused' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-lg font-black font-mono text-white tracking-tight">
+              {{ pomodoro.formattedTime }}
+            </span>
+            <button
+              @click.stop="pomodoro.togglePlayPause"
+              class="p-1.5 rounded-lg border text-xs font-bold transition-all active:scale-95 cursor-pointer"
+              :class="pomodoro.isRunning
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                : 'bg-rose-500/20 text-rose-300 border-rose-500/40'"
+            >
+              <Pause v-if="pomodoro.isRunning" class="w-3.5 h-3.5" />
+              <Play v-else class="w-3.5 h-3.5 fill-current" />
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Section 1: Developer Activity Banner -->
-      <div class="p-3 rounded-2xl bg-neutral-900/90 border border-white/10 space-y-2.5">
+      <div
+        @click="emit('openFullScreen', 'github')"
+        class="p-3 rounded-2xl bg-neutral-900/90 border border-white/10 space-y-2.5 cursor-pointer hover:border-purple-500/40 transition-colors"
+      >
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+            <div class="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
               <Github class="w-4 h-4 text-purple-300" />
             </div>
             <div>
@@ -76,12 +138,36 @@ const handleResume = () => {
         </div>
       </div>
 
+      <!-- Section 1.5: Upcoming Calendar Event -->
+      <div
+        v-if="calendar.nextUpcomingEvent"
+        @click="emit('openFullScreen', 'calendar')"
+        class="p-3 rounded-2xl bg-neutral-900/90 border border-white/10 space-y-1.5 cursor-pointer hover:border-blue-500/40 transition-colors"
+      >
+        <div class="flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2 min-w-0 pr-2">
+            <Calendar class="w-4 h-4 text-blue-400 shrink-0" />
+            <span class="font-bold text-white truncate">{{ calendar.nextUpcomingEvent.title }}</span>
+          </div>
+          <span class="text-[10px] font-mono text-neutral-400 shrink-0">
+            {{ calendar.nextUpcomingEvent.formattedTimeRange }}
+          </span>
+        </div>
+        <div class="flex items-center justify-between pt-0.5 text-[10px]">
+          <span class="text-neutral-400 font-mono">{{ calendar.nextUpcomingEvent.startDateFormatted }} • {{ calendar.nextUpcomingEvent.location || 'Calendar Event' }}</span>
+          <span v-if="calendar.nextUpcomingEvent.isOngoing" class="font-bold text-emerald-400">Happening Now</span>
+          <span v-else-if="calendar.nextUpcomingEvent.minutesUntil <= 30 && calendar.nextUpcomingEvent.minutesUntil >= 0" class="font-bold text-amber-400">In {{ calendar.nextUpcomingEvent.minutesUntil }}m</span>
+          <span v-else class="text-neutral-400 font-mono">{{ calendar.nextUpcomingEvent.isToday ? 'Later today' : calendar.nextUpcomingEvent.dayLabel }}</span>
+        </div>
+      </div>
+
       <!-- Section 2: Active Parcel Milestone Tracker -->
       <div v-if="delivery.parcels.length > 0" class="space-y-2">
         <div
           v-for="parcel in delivery.parcels"
           :key="parcel.id"
-          class="p-3 rounded-2xl bg-neutral-900/90 border border-white/10 space-y-2"
+          @click="emit('openFullScreen', 'deliveries')"
+          class="p-3 rounded-2xl bg-neutral-900/90 border border-white/10 space-y-2 cursor-pointer hover:border-amber-500/40 transition-colors"
         >
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 min-w-0">
@@ -136,7 +222,7 @@ const handleResume = () => {
       </div>
     </div>
 
-    <!-- Bottom Pinned Bar: 1-Tap Music Resumption Pill -->
+    <!-- Bottom Pinned Bar: 1-Tap Music Resumption / Connect Pill -->
     <div class="pt-2 border-t border-white/10 flex items-center justify-between gap-3 shrink-0">
       <div class="flex items-center gap-2 min-w-0">
         <div class="w-2.5 h-2.5 rounded-full bg-neutral-600 animate-pulse" />
@@ -144,11 +230,21 @@ const handleResume = () => {
       </div>
 
       <button
+        v-if="spotify.isAuthenticated"
         @click="handleResume"
         class="py-2 px-4 rounded-xl bg-spotify-green hover:bg-spotify-light text-black font-extrabold text-xs tracking-wide active:scale-95 transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-spotify-green/20"
       >
         <Play class="w-3.5 h-3.5 fill-current" />
         <span class="truncate max-w-[160px]">Resume: {{ lastTrackTitle }}</span>
+      </button>
+
+      <button
+        v-else
+        @click="emit('openSettings')"
+        class="py-2 px-4 rounded-xl bg-spotify-green hover:bg-spotify-light text-black font-extrabold text-xs tracking-wide active:scale-95 transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-spotify-green/20"
+      >
+        <Radio class="w-3.5 h-3.5" />
+        <span>Connect Spotify</span>
       </button>
     </div>
   </div>

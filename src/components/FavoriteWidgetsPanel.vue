@@ -8,6 +8,11 @@ import { useWeatherStore, getWeatherDescription } from '@/stores/weather';
 import { useNetworkStore } from '@/stores/network';
 import ClimateCard from './cards/ClimateCard.vue';
 import LightCard from './cards/LightCard.vue';
+import CalendarCard from './widgets/CalendarCard.vue';
+import PomodoroCard from './widgets/PomodoroCard.vue';
+import HabitCard from './widgets/HabitCard.vue';
+import TimezoneBar from './widgets/TimezoneBar.vue';
+import ClipboardCard from './widgets/ClipboardCard.vue';
 import {
   Star,
   ChevronRight,
@@ -93,7 +98,7 @@ const getStageNumber = (status: string) => {
       <div class="flex items-center gap-1.5">
         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/15 text-amber-300 border border-amber-400/25 flex items-center gap-1">
           <Star class="w-3 h-3 fill-amber-400 text-amber-400" />
-          <span>Favorites ({{ favorites.favoriteWidgets.length }}/2)</span>
+          <span>Favorites ({{ favorites.favoriteWidgets.length }}/{{ favorites.maxFavorites }})</span>
         </span>
       </div>
 
@@ -120,7 +125,7 @@ const getStageNumber = (status: string) => {
     </header>
 
     <!-- Scrollable Favorites Body -->
-    <div class="flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2.5 no-scrollbar">
+    <div class="flex-1 overflow-y-auto p-1.5 sm:p-2 space-y-2 no-scrollbar">
       <!-- Empty state if 0 favorites -->
       <div
         v-if="favorites.favoriteWidgets.length === 0"
@@ -149,7 +154,7 @@ const getStageNumber = (status: string) => {
           class="rounded-2xl border border-white/10 bg-neutral-900/80 shadow-lg transition-all relative overflow-visible"
         >
           <!-- Widget Card Header: Title + Expand Button -->
-          <div class="px-3 py-1.5 border-b border-white/5 flex items-center justify-between bg-black/40">
+          <div class="px-2.5 py-1 border-b border-white/5 flex items-center justify-between bg-black/40">
             <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
               <span class="w-1.5 h-1.5 rounded-full bg-amber-400" />
               <span v-if="widgetId === 'climate'">Smart AC Climate</span>
@@ -158,6 +163,11 @@ const getStageNumber = (status: string) => {
               <span v-else-if="widgetId === 'deliveries'">Domestic Parcel Tracker</span>
               <span v-else-if="widgetId === 'weather'">Desk Weather Station</span>
               <span v-else-if="widgetId === 'network'">Network Monitor</span>
+              <span v-else-if="widgetId === 'calendar'">Daily Agenda</span>
+              <span v-else-if="widgetId === 'pomodoro'">Focus Pomodoro</span>
+              <span v-else-if="widgetId === 'habits'">Daily Habits</span>
+              <span v-else-if="widgetId === 'timezones'">World Clock</span>
+              <span v-else-if="widgetId === 'clipboard'">LAN Clipboard</span>
             </span>
 
             <button
@@ -170,7 +180,7 @@ const getStageNumber = (status: string) => {
           </div>
 
           <!-- Widget Card Content -->
-          <div class="p-2 sm:p-2.5">
+          <div class="p-2">
             <!-- 1. Climate Widget -->
             <div v-if="widgetId === 'climate'">
               <ClimateCard
@@ -385,6 +395,36 @@ const getStageNumber = (status: string) => {
                 </div>
               </div>
             </div>
+
+            <!-- 7. Calendar -->
+            <CalendarCard
+              v-else-if="widgetId === 'calendar'"
+              @expand="emit('open-fullscreen', 'calendar')"
+            />
+
+            <!-- 8. Pomodoro -->
+            <PomodoroCard
+              v-else-if="widgetId === 'pomodoro'"
+              @expand="emit('open-fullscreen', 'pomodoro')"
+            />
+
+            <!-- 9. Habits -->
+            <HabitCard
+              v-else-if="widgetId === 'habits'"
+              @expand="emit('open-fullscreen', 'habits')"
+            />
+
+            <!-- 10. Timezones -->
+            <TimezoneBar
+              v-else-if="widgetId === 'timezones'"
+              @expand="emit('open-fullscreen', 'timezones')"
+            />
+
+            <!-- 11. Clipboard -->
+            <ClipboardCard
+              v-else-if="widgetId === 'clipboard'"
+              @expand="emit('open-fullscreen', 'clipboard')"
+            />
           </div>
         </div>
 

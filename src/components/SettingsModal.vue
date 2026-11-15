@@ -2,6 +2,8 @@
 import { ref } from 'vue';
 import { useSpotifyStore } from '@/stores/spotify';
 import { useHomeAssistantStore } from '@/stores/homeAssistant';
+import { useFavoritesStore } from '@/stores/favorites';
+import { useScreensaverStore } from '@/stores/screensaver';
 import {
   X,
   ArrowLeft,
@@ -17,7 +19,10 @@ import {
   Home,
   Sparkles,
   Pin,
-  Lock
+  Lock,
+  Star,
+  Clock,
+  Eye
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -31,6 +36,13 @@ const props = defineProps<{
 
 const spotify = useSpotifyStore();
 const ha = useHomeAssistantStore();
+const favorites = useFavoritesStore();
+const screensaver = useScreensaverStore();
+
+const handleTestScreensaver = () => {
+  screensaver.testScreensaver();
+  emit('close');
+};
 
 const localClientId = ref(spotify.clientId);
 const copied = ref(false);
@@ -206,6 +218,77 @@ const saveDeskPin = () => {
               class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs active:scale-95 cursor-pointer shadow-sm"
             >
               {{ pinSaved ? 'Saved!' : 'Save' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Max Pinned Favorites (Customization & Tablet Fit) -->
+        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-white/5 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="text-xs font-bold text-white flex items-center gap-1.5">
+              <Star class="w-3.5 h-3.5 text-amber-400" />
+              <span>Max Pinned Favorites (Right Pane)</span>
+            </div>
+            <span class="text-[10px] text-neutral-400 font-mono">Limit: {{ favorites.maxFavorites }} widgets</span>
+          </div>
+          <p class="text-[11px] text-neutral-400">
+            Set the maximum number of simultaneous favorite cards displayed on the right pane while music plays. Phone landscape fits 2; larger tablets comfortably fit 3 or 4.
+          </p>
+          <div class="flex items-center gap-2 pt-1">
+            <button
+              v-for="count in [2, 3, 4]"
+              :key="count"
+              @click="favorites.setMaxFavorites(count)"
+              type="button"
+              class="flex-1 py-1.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+              :class="favorites.maxFavorites === count
+                ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 shadow-sm'
+                : 'bg-black/60 border-white/10 text-neutral-400 hover:text-white'"
+            >
+              <span>{{ count }} Widgets</span>
+              <span class="text-[9px] opacity-70">
+                {{ count === 2 ? '(Phone)' : count === 3 ? '(Wide)' : '(Tablet)' }}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- OLED Screensaver & Clock Themes -->
+        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-white/5 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="text-xs font-bold text-white flex items-center gap-1.5">
+              <Clock class="w-3.5 h-3.5 text-cyan-400" />
+              <span>OLED Screensaver & Clock Themes</span>
+            </div>
+            <button
+              @click="handleTestScreensaver"
+              type="button"
+              class="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm"
+              title="Immediately test screensaver on display"
+            >
+              <Eye class="w-3.5 h-3.5" />
+              <span>Test Screensaver</span>
+            </button>
+          </div>
+          <p class="text-[11px] text-neutral-400">
+            Choose your ambient standby clock theme. Tap "Test Screensaver" to preview immediately, or cycle themes via the pill at the bottom of the screensaver.
+          </p>
+          <div class="flex items-center gap-2 pt-1">
+            <button
+              v-for="t in ([
+                { id: 'minimalist', label: 'Minimalist' },
+                { id: 'flip', label: 'Retro Flip' },
+                { id: 'word', label: 'Word Clock' }
+              ] as const)"
+              :key="t.id"
+              @click="screensaver.setTheme(t.id)"
+              type="button"
+              class="flex-1 py-1.5 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+              :class="screensaver.theme === t.id
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-sm'
+                : 'bg-black/60 border-white/10 text-neutral-400 hover:text-white'"
+            >
+              {{ t.label }}
             </button>
           </div>
         </div>

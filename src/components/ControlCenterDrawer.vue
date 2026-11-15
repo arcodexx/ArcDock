@@ -6,6 +6,12 @@ import { useGitHubStore } from '@/stores/github';
 import { useDeliveryStore, COURIER_LIST } from '@/stores/delivery';
 import { useHomeAssistantStore } from '@/stores/homeAssistant';
 import { useFavoritesStore } from '@/stores/favorites';
+import { useCalendarStore } from '@/stores/calendar';
+import { usePomodoroStore } from '@/stores/pomodoro';
+import { useHabitsStore } from '@/stores/habits';
+import { useTimezonesStore } from '@/stores/timezones';
+import { useClipboardStore } from '@/stores/clipboard';
+import type { WidgetType } from '@/stores/favorites';
 import {
   Sun,
   SunMedium,
@@ -24,12 +30,17 @@ import {
   ChevronUp,
   ExternalLink,
   Star,
-  AlertTriangle
+  AlertTriangle,
+  Calendar,
+  Timer,
+  Target,
+  Globe,
+  Clipboard
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
   (e: 'close'): void;
-  (e: 'open-fullscreen', target: 'weather' | 'github' | 'deliveries' | 'climate' | 'lights' | 'network'): void;
+  (e: 'open-fullscreen', target: WidgetType): void;
 }>();
 
 const weatherStore = useWeatherStore();
@@ -38,6 +49,11 @@ const githubStore = useGitHubStore();
 const deliveryStore = useDeliveryStore();
 const ha = useHomeAssistantStore();
 const favorites = useFavoritesStore();
+const calendarStore = useCalendarStore();
+const pomodoroStore = usePomodoroStore();
+const habitsStore = useHabitsStore();
+const timezonesStore = useTimezonesStore();
+const clipboardStore = useClipboardStore();
 
 // Weather icon helper
 const getWeatherIconComponent = (iconName: string) => {
@@ -91,7 +107,7 @@ const getCourierName = (id: string) => {
           <h2 class="text-sm sm:text-base font-extrabold text-white tracking-wide uppercase">Desk Control Center</h2>
           <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/15 text-amber-300 border border-amber-400/25 flex items-center gap-1">
             <Star class="w-3 h-3 fill-amber-400 text-amber-400" />
-            <span>Favorites: {{ favorites.favoriteWidgets.length }}/2</span>
+            <span>Favorites: {{ favorites.favoriteWidgets.length }}/{{ favorites.maxFavorites }}</span>
           </span>
         </div>
 
@@ -131,10 +147,13 @@ const getCourierName = (id: string) => {
           :class="favorites.isFavorite('weather') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-sky-500/20 hover:border-sky-400/40'"
         >
           <div class="flex items-center justify-between">
-            <div class="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center">
-              <component :is="getWeatherIconComponent(weatherStore.currentCondition.icon)" class="w-4 h-4" />
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+                <component :is="getWeatherIconComponent(weatherStore.currentCondition.icon)" class="w-4 h-4" />
+              </div>
+              <span class="text-xs font-bold text-white tracking-wide truncate">Weather</span>
             </div>
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('weather')"
                 class="p-1 rounded-lg hover:bg-white/10 transition-colors"
@@ -168,10 +187,13 @@ const getCourierName = (id: string) => {
           :class="favorites.isFavorite('github') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-purple-500/20 hover:border-purple-400/40'"
         >
           <div class="flex items-center justify-between">
-            <div class="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
-              <Github class="w-4 h-4 text-purple-300" />
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
+                <Github class="w-4 h-4 text-purple-300" />
+              </div>
+              <span class="text-xs font-bold text-white tracking-wide truncate">GitHub</span>
             </div>
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('github')"
                 class="p-1 rounded-lg hover:bg-white/10 transition-colors"
@@ -203,10 +225,13 @@ const getCourierName = (id: string) => {
           :class="favorites.isFavorite('deliveries') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-amber-500/20 hover:border-amber-400/40'"
         >
           <div class="flex items-center justify-between">
-            <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-              <Package class="w-4 h-4" />
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <Package class="w-4 h-4" />
+              </div>
+              <span class="text-xs font-bold text-white tracking-wide truncate">Parcels</span>
             </div>
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('deliveries')"
                 class="p-1 rounded-lg hover:bg-white/10 transition-colors"
@@ -239,10 +264,13 @@ const getCourierName = (id: string) => {
           :class="favorites.isFavorite('climate') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-cyan-500/20 hover:border-cyan-400/40'"
         >
           <div class="flex items-center justify-between">
-            <div class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
-              <Snowflake class="w-4 h-4" />
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                <Snowflake class="w-4 h-4" />
+              </div>
+              <span class="text-xs font-bold text-white tracking-wide truncate">Climate</span>
             </div>
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('climate')"
                 class="p-1 rounded-lg hover:bg-white/10 transition-colors"
@@ -276,10 +304,13 @@ const getCourierName = (id: string) => {
           :class="favorites.isFavorite('lights') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-amber-500/20 hover:border-amber-400/40'"
         >
           <div class="flex items-center justify-between">
-            <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-              <Lightbulb class="w-4 h-4" />
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <Lightbulb class="w-4 h-4" />
+              </div>
+              <span class="text-xs font-bold text-white tracking-wide truncate">Smart Lights</span>
             </div>
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('lights')"
                 class="p-1 rounded-lg hover:bg-white/10 transition-colors"
@@ -311,10 +342,13 @@ const getCourierName = (id: string) => {
           :class="favorites.isFavorite('network') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-emerald-500/20 hover:border-emerald-400/40'"
         >
           <div class="flex items-center justify-between">
-            <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-              <Wifi class="w-4 h-4" />
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <Wifi class="w-4 h-4" />
+              </div>
+              <span class="text-xs font-bold text-white tracking-wide truncate">Network</span>
             </div>
-            <div class="flex items-center gap-1.5">
+            <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('network')"
                 class="p-1 rounded-lg hover:bg-white/10 transition-colors"
@@ -346,6 +380,198 @@ const getCourierName = (id: string) => {
             </div>
             <div class="text-[10px] text-neutral-400 font-medium truncate mt-0.5">
               Ping to 1.1.1.1 • Real-time
+            </div>
+          </div>
+        </div>
+
+        <!-- 7. Daily Calendar / Agenda Card -->
+        <div
+          @click="emit('open-fullscreen', 'calendar')"
+          class="p-3.5 rounded-2xl bg-gradient-to-br from-blue-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          :class="favorites.isFavorite('calendar') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-blue-500/20 hover:border-blue-400/40'"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+                <Calendar class="w-4 h-4" />
+              </div>
+              <span class="text-xs font-bold text-white tracking-wide truncate">Calendar</span>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                @click.stop="favorites.toggleFavorite('calendar')"
+                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                :title="favorites.isFavorite('calendar') ? 'Unmark Favorite' : 'Mark Favorite'"
+              >
+                <Star class="w-4 h-4" :class="favorites.isFavorite('calendar') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
+              </button>
+              <ExternalLink class="w-3.5 h-3.5 text-neutral-500 group-hover:text-white transition-colors" />
+            </div>
+          </div>
+
+          <div class="mt-2">
+            <div class="flex items-baseline gap-1.5 truncate">
+              <span class="text-base font-bold text-white truncate">
+                {{ calendarStore.nextUpcomingEvent?.title || 'No Meetings' }}
+              </span>
+            </div>
+            <div class="text-[10px] text-neutral-400 font-medium truncate mt-0.5">
+              {{ calendarStore.nextUpcomingEvent ? calendarStore.nextUpcomingEvent.formattedTimeRange : 'Clear schedule' }}
+            </div>
+          </div>
+        </div>
+
+        <!-- 8. Focus Pomodoro Card -->
+        <div
+          @click="emit('open-fullscreen', 'pomodoro')"
+          class="p-3.5 rounded-2xl bg-gradient-to-br from-rose-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          :class="favorites.isFavorite('pomodoro') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-rose-500/20 hover:border-rose-400/40'"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+                <Timer class="w-4 h-4" />
+              </div>
+              <span class="text-xs font-bold text-white tracking-wide truncate">Pomodoro</span>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                @click.stop="favorites.toggleFavorite('pomodoro')"
+                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                :title="favorites.isFavorite('pomodoro') ? 'Unmark Favorite' : 'Mark Favorite'"
+              >
+                <Star class="w-4 h-4" :class="favorites.isFavorite('pomodoro') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
+              </button>
+              <ExternalLink class="w-3.5 h-3.5 text-neutral-500 group-hover:text-white transition-colors" />
+            </div>
+          </div>
+
+          <div class="mt-2">
+            <div class="flex items-baseline gap-1.5">
+              <span class="text-2xl font-black text-white font-mono">
+                {{ pomodoroStore.formattedTime }}
+              </span>
+              <span class="text-xs font-bold text-rose-400">
+                {{ pomodoroStore.phaseLabel }}
+              </span>
+            </div>
+            <div class="text-[10px] text-neutral-400 font-medium truncate mt-0.5">
+              {{ pomodoroStore.completedSessions }} sessions today • HA sync
+            </div>
+          </div>
+        </div>
+
+        <!-- 9. Daily Habits Card -->
+        <div
+          @click="emit('open-fullscreen', 'habits')"
+          class="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          :class="favorites.isFavorite('habits') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-emerald-500/20 hover:border-emerald-400/40'"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <Target class="w-4 h-4" />
+              </div>
+              <span class="text-xs font-bold text-white tracking-wide truncate">Habits</span>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                @click.stop="favorites.toggleFavorite('habits')"
+                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                :title="favorites.isFavorite('habits') ? 'Unmark Favorite' : 'Mark Favorite'"
+              >
+                <Star class="w-4 h-4" :class="favorites.isFavorite('habits') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
+              </button>
+              <ExternalLink class="w-3.5 h-3.5 text-neutral-500 group-hover:text-white transition-colors" />
+            </div>
+          </div>
+
+          <div class="mt-2">
+            <div class="flex items-baseline gap-1.5">
+              <span class="text-2xl font-black text-white font-mono">
+                {{ habitsStore.habits.filter((h) => habitsStore.isCompletedToday(h.id)).length }}/{{ habitsStore.habits.length }}
+              </span>
+              <span class="text-xs font-bold text-emerald-400">Done</span>
+            </div>
+            <div class="text-[10px] text-neutral-400 font-medium truncate mt-0.5">
+              1-tap daily ritual streaks
+            </div>
+          </div>
+        </div>
+
+        <!-- 10. World Clock Card -->
+        <div
+          @click="emit('open-fullscreen', 'timezones')"
+          class="p-3.5 rounded-2xl bg-gradient-to-br from-cyan-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          :class="favorites.isFavorite('timezones') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-cyan-500/20 hover:border-cyan-400/40'"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                <Globe class="w-4 h-4" />
+              </div>
+              <span class="text-xs font-bold text-white tracking-wide truncate">World Clock</span>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                @click.stop="favorites.toggleFavorite('timezones')"
+                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                :title="favorites.isFavorite('timezones') ? 'Unmark Favorite' : 'Mark Favorite'"
+              >
+                <Star class="w-4 h-4" :class="favorites.isFavorite('timezones') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
+              </button>
+              <ExternalLink class="w-3.5 h-3.5 text-neutral-500 group-hover:text-white transition-colors" />
+            </div>
+          </div>
+
+          <div class="mt-2">
+            <div class="flex items-baseline gap-1.5 truncate">
+              <span class="text-base font-bold text-white truncate">
+                {{ timezonesStore.slots[0]?.city || 'World Clock' }}
+              </span>
+              <span class="text-xs font-mono text-cyan-400 font-bold">
+                {{ timezonesStore.slots[0] ? timezonesStore.getTimeInfo(timezonesStore.slots[0].timezone).timeStr : '' }}
+              </span>
+            </div>
+            <div class="text-[10px] text-neutral-400 font-medium truncate mt-0.5">
+              {{ timezonesStore.slots.length }} configured cities
+            </div>
+          </div>
+        </div>
+
+        <!-- 11. LAN Clipboard Card -->
+        <div
+          @click="emit('open-fullscreen', 'clipboard')"
+          class="p-3.5 rounded-2xl bg-gradient-to-br from-violet-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          :class="favorites.isFavorite('clipboard') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-violet-500/20 hover:border-violet-400/40'"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-violet-500/20 text-violet-400 flex items-center justify-center shrink-0">
+                <Clipboard class="w-4 h-4" />
+              </div>
+              <span class="text-xs font-bold text-white tracking-wide truncate">LAN Clipboard</span>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                @click.stop="favorites.toggleFavorite('clipboard')"
+                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                :title="favorites.isFavorite('clipboard') ? 'Unmark Favorite' : 'Mark Favorite'"
+              >
+                <Star class="w-4 h-4" :class="favorites.isFavorite('clipboard') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
+              </button>
+              <ExternalLink class="w-3.5 h-3.5 text-neutral-500 group-hover:text-white transition-colors" />
+            </div>
+          </div>
+
+          <div class="mt-2">
+            <div class="flex items-baseline gap-1.5 truncate">
+              <span class="text-base font-bold text-white truncate font-mono">
+                {{ clipboardStore.current?.text ? clipboardStore.current.text.slice(0, 20) : 'Empty' }}
+              </span>
+            </div>
+            <div class="text-[10px] text-neutral-400 font-medium truncate mt-0.5">
+              {{ clipboardStore.current ? `From ${clipboardStore.current.device}` : 'Open /clip to sync' }}
             </div>
           </div>
         </div>

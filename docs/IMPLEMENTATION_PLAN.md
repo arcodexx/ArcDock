@@ -203,47 +203,47 @@
 
 ---
 
-## Phase 5: Desk Productivity Suite, Shared LAN Utilities & Ambient Themes — [PLANNED]
+## Phase 5: Desk Productivity Suite, Shared LAN Utilities & Ambient Themes — [COMPLETED]
 
-### Step 5.1: Zero-Credentials Google Calendar & Agenda Widget
-- [ ] **Architecture & Company Privacy Guarantee:**
+### Step 5.1: Zero-Credentials Google Calendar & Agenda Widget — [COMPLETED]
+- [x] **Architecture & Company Privacy Guarantee:**
   - Build `src/stores/calendar.ts` with complete isolation from corporate device enrollment / Google MDM policies.
   - Support **Dual Ingestion Engine**:
-    - **Mode A (Private iCal URL):** Fetch read-only `.ics` calendar feed URL (e.g. Google Calendar Secret Address) via a local Vite/Caddy proxy bridge. Parse VEVENT components client-side (using a lightweight parser like `ical.js` or dedicated zero-dep parser) to extract today's events (`summary`, `dtstart`, `dtend`, `location`, `description`, meeting links).
+    - **Mode A (Private iCal URL):** Fetch read-only `.ics` calendar feed URL (e.g. Google Calendar Secret Address) via a local Vite/Caddy proxy bridge (`/api/calendar/feed`). Parse VEVENT components client-side to extract today's events (`summary`, `dtstart`, `dtend`, `location`, `description`, meeting links).
     - **Mode B (Local LAN Push / Webhook):** Provide a local HTTP receiver endpoint (`POST /api/calendar/sync`) allowing an external script or workstation shortcut (Mac/PC) on the local Wi-Fi to push sanitized daily schedule JSON directly without any credentials.
-- [ ] **UI & Glanceable Components:**
+- [x] **UI & Glanceable Components:**
   - `src/components/views/CalendarView.vue`: Full-screen calendar station featuring today's chronological event timeline, current time horizontal indicator line, event details, and in-context `[ ⚙️ Calendar Source ]` configuration drawer.
   - `src/components/widgets/CalendarCard.vue`: Compact card for Favorite Widgets panel and Control Center drawer displaying the next upcoming meeting with visual countdown pill (e.g. *"Design Sync in 8m"*).
-  - Meeting Radar integration in `TopBar.vue` or Standby Hub: Pulsing ambient amber badge when an event begins in < 10 minutes, with 1-tap view of the Google Meet / Zoom link.
-  - Add calendar to `WIDGET_CATALOG`, favorites store (`useFavoritesStore`), and TopBar/Control Center launchers.
+  - Meeting Radar integration in `TopBar.vue` and Standby Hub: Pulsing ambient amber badge when an event begins in < 10 minutes, with 1-tap view of the Google Meet / Zoom link.
+  - Added calendar to `WIDGET_CATALOG`, favorites store (`useFavoritesStore`), and TopBar/Control Center launchers.
 
-### Step 5.2: Smart Desk Pomodoro Timer with Home Assistant Automation
-- [ ] **State Machine & Timing Engine (`src/stores/pomodoro.ts`):**
+### Step 5.2: Smart Desk Pomodoro Timer with Home Assistant Automation — [COMPLETED]
+- [x] **State Machine & Timing Engine (`src/stores/pomodoro.ts`):**
   - Implement reliable interval state machine: `idle | focus | short_break | long_break`.
   - Default presets: 25m Focus / 5m Break; 50m Focus / 10m Break; customizable session lengths.
   - Completed focus sessions counter & daily total focus time tracker (persisted in `localStorage`).
   - Web Audio API gentle ambient chime on phase transitions (focus completed, break completed).
   - *Explicit Requirement:* No automatic Spotify music playlist sync.
-- [ ] **Home Assistant Scene Link:**
+- [x] **Home Assistant Scene Link:**
   - Configurable automation hook:
-    - On Focus Start: Dispatch `callService('scene', 'turn_on', { entity_id: 'scene.focus' })` or adjust desk ambient lighting / lightbar to cool focus white, set AC setpoint to focus comfort.
-    - On Break Start: Dispatch `callService('scene', 'turn_on', { entity_id: 'scene.relax' })` or adjust room lights to warm amber.
+    - On Focus Start: Dispatch `haStore.activateScene(focusSceneEntity)` (triggers cool white task lighting, AC focus setpoint).
+    - On Break Start: Dispatch `haStore.activateScene(breakSceneEntity)` (triggers warm amber lighting).
   - Master toggle switch *"Automate Desk Scenes with Pomodoro"* and scene selector inside the Pomodoro in-widget settings.
-- [ ] **UI Components:**
+- [x] **UI Components:**
   - `src/components/views/PomodoroView.vue`: Full-screen view with a large, high-contrast circular SVG countdown dial, thumb-friendly start/pause/reset/skip controls, session history, and scene settings.
   - `src/components/widgets/PomodoroCard.vue`: Compact favorite widget card with mini circular timer progress ring and 1-tap Play/Pause toggle.
 
-### Step 5.3: Daily Habit & Goal Tracker
-- [ ] **Habit Engine (`src/stores/habits.ts`):**
+### Step 5.3: Daily Habit & Goal Tracker — [COMPLETED]
+- [x] **Habit Engine (`src/stores/habits.ts`):**
   - Pinia store managing daily micro-rituals (e.g., *2L Water, Workout, Read 15m, Side Project, Standup Prep*).
   - Persist daily completion states and timestamps in `localStorage['arcdock_habits']`.
   - Automated midnight rollover that archives completion into an interactive 7-day GitHub-style visual dot streak.
-- [ ] **UI Components:**
+- [x] **UI Components:**
   - `src/components/views/HabitsView.vue`: Full-screen view with habit creation/editing modal (`[ + Add Habit ]`, name, emoji icon, category), streak statistics, and historical calendar view.
   - `src/components/widgets/HabitCard.vue`: Compact checklist card for Favorite Widgets panel and Standby Hub with 1-tap completion toggles and animated checkmark feedback.
 
-### Step 5.4: Configurable World Clock & Team Timezone Bar
-- [ ] **Timezone Engine (`src/stores/timezones.ts`):**
+### Step 5.4: Configurable World Clock & Team Timezone Bar — [COMPLETED]
+- [x] **Timezone Engine (`src/stores/timezones.ts`):**
   - Manage a user-configurable list of team members, clients, or cities with IANA timezones (e.g., `Europe/Madrid`, `America/New_York`, `UTC`, `Asia/Tokyo`).
   - Customizable labels per slot (e.g., "Manager", "Client", "HQ", "Tech Lead").
   - Dynamic status classifier based on target city's current local hour:
@@ -251,36 +251,58 @@
     - `🟡 Off Hours / Evening` (18:00 - 23:00)
     - `🌙 Night / Sleeping` (23:00 - 09:00)
   - Synchronized with the app's 60-second wall-clock ticker to prevent idle CPU wakeups.
-- [ ] **UI Components:**
-  - `src/components/widgets/TimezoneBar.vue`: Sleek horizontal ribbon displayed in the Standby Work Hub or Favorite Widgets panel showing flags, city names, local time (12h/24h), and availability status pills.
-  - `src/components/views/TimezoneView.vue`: Full-screen timezone station with city search, timezone comparator slider (scrub hours to see what time it will be for the whole team), and custom slot configuration.
+  - **12h/24h Format Engine:** Defaults to 12-hour format with AM/PM (`'12h'`), with one-click toggles and `localStorage` persistence.
+  - **Local Time Helper:** `getLocalTimeInfo` helper computing home base time, date, and availability status.
+- [x] **UI Components:**
+  - `src/components/widgets/TimezoneBar.vue`: Sleek horizontal ribbon displayed in the Favorite Widgets panel showing local home base time, 12h/24h toggle, city names, local time, and availability status pills in a compact footprint.
+  - `src/components/views/TimezoneView.vue`: Full-screen timezone station featuring:
+    - Dedicated "Your Local Time (Home Base)" reference card anchored at the top.
+    - Ultra-compact single-row meeting planner scrubber slider (`-12h` to `+12h`) with quick Reset button.
+    - Worldwide Search supporting both City and Country names (e.g. Spain, Germany, France, UK, USA, India, Japan, Australia, Canada, UAE) integrated with Open-Meteo geocoding.
+    - Fixed search input left padding (`pl-9`) eliminating text-icon overlap.
+    - Tightened card padding (`px-3 py-1.5`) optimized for landscape desk displays.
 
-### Step 5.5: Web-Based Shared LAN Clipboard (Zero-Script Cross-Device Sync)
-- [ ] **Server & Network Architecture:**
+### Step 5.5: Web-Based Shared LAN Clipboard (Zero-Script Cross-Device Sync) — [COMPLETED]
+- [x] **Server & Network Architecture:**
   - **Zero scripts on external devices:** No daemons, Raycast extensions, or native apps required on Mac, Windows, or iOS/Android.
-  - Serve a lightweight, mobile-responsive web route at `/clip` (or static `public/clip.html` via Vite / Caddy / Termux):
+  - Serve a lightweight, mobile-responsive web route at `/clip` (via static `public/clip.html` and Vite bridge middleware):
     - Clean browser page with a text area, "Paste & Push to ArcDock" button, and "Copy Current Clipboard" button.
   - Real-time LAN synchronization:
-    - WebSocket or SSE / lightweight HTTP sync between `/clip` web clients and the ArcDock frontend store (`src/stores/clipboard.ts`).
+    - `/api/clipboard` REST and polling sync between `/clip` web clients and the ArcDock frontend store (`src/stores/clipboard.ts`).
     - Immediate bi-directional reactivity: Text pasted from a laptop or phone instantly updates the ArcDock dock display; text copied on ArcDock is instantly readable on the web client.
-- [ ] **UI Components:**
+- [x] **UI Components:**
   - `src/components/views/ClipboardView.vue`: Full-screen clipboard manager displaying the current active clip in high-contrast text, 1-tap copy to phone clipboard, clear button, and a rolling history of the last 5 clips with timestamps.
   - `src/components/widgets/ClipboardCard.vue`: Compact favorite widget card with quick-copy button, truncated snippet preview, and QR code / link pill to open the `/clip` web page on any local device.
 
-### Step 5.6: Ambient Screensaver Themes (Clock Skins) & Daily Mindset Quote
-- [ ] **Custom Screensaver Theme Engine (`src/stores/screensaver.ts` & `src/components/OledScreensaver.vue`):**
-  - Implement selectable clock face themes for the AMOLED idle screensaver:
-    - **Theme 1: Retro Flip Clock** — Classic mechanical split-flap desk clock aesthetic with smooth CSS 3D transform card flips.
+### Step 5.6: Ambient Screensaver Themes (Clock Skins) & Daily Mindset Quote — [COMPLETED]
+- [x] **Custom Screensaver Theme Engine (`src/stores/screensaver.ts` & `src/components/OledScreensaver.vue`):**
+  - Selectable clock face themes for the AMOLED idle screensaver:
+    - **Theme 1: Retro Flip Clock** — Classic mechanical split-flap desk clock aesthetic with smooth CSS split cards.
     - **Theme 2: Word Clock** — Typographic grid lighting up natural language time (*"IT IS HALF PAST THREE"*).
     - **Theme 3: Minimalist Typography Clock** — Pure `#000000` true-black floating clock with ultra-clean modern typography.
-  - Theme switching via horizontal swipe gesture directly on the screensaver or via Settings.
-  - Maintain the existing 10-minute micro pixel-shift mechanism (1–2px translate) across all themes to guarantee zero AMOLED burn-in.
-- [ ] **Daily Mindset / Stoic Quote on Screensaver:**
-  - **Zero Widget-Slot Penalty:** To preserve valuable favorite widget slots for functional tools, display the daily quote directly on the OLED Screensaver beneath the clock face.
-  - Rendered in dimmed, low-contrast text (`#666666`) to conserve battery, prevent distraction, and power off background pixels.
-  - Curated offline JSON collection of insightful engineering wisdom, stoicism, and focus principles (`src/data/quotes.json`), rotating once per calendar day or upon tapping the quote.
+  - Theme switching via 1-tap theme pill on screensaver.
+  - Maintained 10-minute micro pixel-shift mechanism across all themes to guarantee zero AMOLED burn-in.
+- [x] **Daily Mindset / Stoic Quote on Screensaver:**
+  - Displayed directly on the OLED Screensaver beneath the clock face in dimmed, low-contrast text (`#666666`), saving 100% of favorite widget slots.
+  - Curated offline JSON collection (`src/data/quotes.json`), rotating daily or upon tapping the quote.
 
-### Step 5.7: Future Hardware Backlog — Indoor Air Quality & CO2 Alert Card
+### Step 5.8: Desk Usability, Layout & Landscape Sizing Polish — [COMPLETED]
+- [x] **Screensaver Centralization:**
+  - Removed interactive theme buttons from the ambient OLED screensaver (`OledScreensaver.vue`); clock skin selection and live preview testing are cleanly centralized in Settings.
+- [x] **Landscape Sizing & Padding Optimization:**
+  - Tightened `FavoriteWidgetsPanel.vue` headers (`py-1`), body padding (`p-1.5 sm:p-2`), and item gaps to prevent vertical overflow on landscape desk viewports (~360–390px).
+  - Streamlined `TimezoneBar.vue` items with compact padding (`p-1 px-2`) and tighter spacing (`space-y-1`).
+  - Replaced bulky ~110px time scrubber card in `TimezoneView.vue` with an ultra-compact ~32px single-line bar.
+- [x] **Modal & View Scrolling Fixes:**
+  - Added vertical scrolling (`max-h-[85vh] overflow-y-auto custom-scrollbar`) to habit creation form modal in `HabitsView.vue`.
+  - Added vertical scrolling to Add City modal in `TimezoneView.vue`.
+- [x] **Top-Center Toast & Notifications:**
+  - Converted the LAN Clipboard incoming notification in `App.vue` into a sleek, top-center pill with zero button clutter that opens the widget view on tap.
+- [x] **Main View Navigation & Focus Mode:**
+  - Connected direct click-to-expand navigation from `StandbyWorkHub.vue` cards (Pomodoro, GitHub, Calendar, Deliveries) directly to their full-screen views.
+  - Added full-screen Zen/Deep Focus mode to `PomodoroView.vue` with glowing dial and distraction-free AMOLED display.
+
+### Step 5.9: Future Hardware Backlog — Indoor Air Quality & CO2 Alert Card
 - [ ] **Hardware-Dependent Integration:**
   - Status: *On Hold* until physical Zigbee / Wi-Fi room air quality sensor is acquired and integrated into Home Assistant.
   - Will connect to Home Assistant sensor domains (`sensor.*_co2`, `sensor.*_voc`, `sensor.*_humidity`).

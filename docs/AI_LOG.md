@@ -4,6 +4,107 @@ This log tracks all architectural discussions, technical decisions, completed st
 
 ---
 
+## Log Entry: 2026-11-15 (Entry 27)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** World Clock Polish, Time Scrubber Compact Overhaul, Searchable Countries, Local Time Anchor & Widget Sizing Optimizations
+
+### 1. Key Accomplishments & Architectural Decisions
+1. **12-Hour Default & Time Format Toggle (`timezones.ts`, `TimezoneBar.vue`, `TimezoneView.vue`):**
+   - Switched the default time format across the entire World Clock subsystem from 24-hour to **12-hour format with AM/PM**.
+   - Added `timeFormat` state (`'12h' | '24h'`) in `useTimezonesStore`, persisted to `localStorage['arcdock_timezones_format']`.
+   - Added interactive `12H / 24H` toggle buttons in both the favorite widget card header (`TimezoneBar.vue`) and the top toolbar of the full-screen view (`TimezoneView.vue`).
+2. **Worldwide Country Search with Open-Meteo Integration (`TimezoneView.vue`):**
+   - Expanded the World Clock lookup to support searching by **Country Name** (e.g., Spain, Germany, France, UK, USA, India, Japan, Australia, Canada, UAE, Italy, Netherlands, Switzerland, etc.) in addition to city names.
+   - Built an instant canonical fallback dictionary (`COUNTRY_MAP`) mapping countries to their primary financial/capital cities and IANA timezones (`Europe/Madrid`, `America/New_York`, `Asia/Kolkata`, etc.), seamlessly merged with Open-Meteo live geocoding results.
+3. **Search Input Text Overlap Fix (`TimezoneView.vue`):**
+   - Corrected an invalid Tailwind class (`pl-8.5` which fell back to 0px padding) to `pl-9` (36px).
+   - Added `pointer-events-none` to the Search icon and updated placeholder to `"Search city or country (e.g. Spain, Tokyo, Berlin)"`.
+4. **Anchored Local Time (Home Base) Reference (`TimezoneBar.vue`, `TimezoneView.vue`):**
+   - **Widget Card:** Displayed a dedicated `Local: <Time>` header at the top of `TimezoneBar.vue`.
+   - **Full View:** Added a prominent "Your Local Time (Home Base)" reference card anchored at the top of the list in `TimezoneView.vue`.
+   - Both references automatically reflect the active 12h/24h format and dynamically shift in sync with the meeting planner scrubber slider.
+5. **Ultra-Compact Time Scrubber Bar (`TimezoneView.vue`):**
+   - Eliminated the bulky multi-line paragraph block that was pushing world clock cards off-screen on landscape viewports.
+   - Replaced it with an ultra-sleek, single horizontal row (~32px):
+     - `Scrubber` label + dynamic offset indicator (e.g. `+3h`)
+     - Inline range slider with `-12h` and `+12h` bounds
+     - Quick "Reset" pill button (displayed only when an offset is active)
+6. **Landscape Widget Sizing & Spacing Optimizations (`FavoriteWidgetsPanel.vue`, `TimezoneBar.vue`, `TimezoneView.vue`):**
+   - Tightened row padding in `TimezoneView.vue` (`px-3 py-1.5 rounded-xl`) to maximize visible world cities.
+   - Reduced item spacing (`space-y-1`) and padding (`p-1 px-2`) in `TimezoneBar.vue`.
+   - Reduced widget header vertical padding (`py-1`), panel content padding (`p-1.5 sm:p-2`), and card spacing (`space-y-2`) in `FavoriteWidgetsPanel.vue` to guarantee zero unneeded vertical scrolling on 360–390px landscape desk screens.
+
+### 2. Verification & Build Status
+- `npm run build` (`vue-tsc && vite build`) executed and verified: **0 errors**, build completed in 1.47s.
+- Zero external daemons or client scripts introduced.
+- Preserved strict AMOLED true-black `#000000` aesthetics throughout.
+
+---
+
+## Log Entry: 2026-11-15 (Entry 26)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Usability & UX Refinements (Calendar Lookahead, Top-Center Toast Pill, Scrollable Habit Modal, Searchable World Cities, Screensaver Cleanup & Zen Focus Pomodoro)
+
+### 1. Key Refinements Implemented
+1. **Calendar Lookahead Window Confirmation (`calendar.ts`):**
+   - Calendar parses a rolling 7-day lookahead window (`now` to `now + 7 days`), grouping meetings cleanly into daily sections (`Today`, `Tomorrow`, and upcoming dates).
+2. **Compact Top-Center LAN Clipboard Notification Pill (`App.vue`):**
+   - Replaced bulky bottom/middle notification with a small, centered, rounded pill at the top of the viewport.
+   - Removed copy button clutter; clicking the pill directly opens the LAN Clipboard widget view.
+3. **Scrollable Habit Creation Form (`HabitsView.vue`):**
+   - Added `max-h-[85vh] overflow-y-auto custom-scrollbar` to the habit modal, ensuring effortless scrolling on constrained landscape viewports.
+4. **Searchable World Clock City Lookup (`TimezoneView.vue`):**
+   - Removed static quick presets in the Add City modal.
+   - Integrated live worldwide city geocoding search (leveraging Open-Meteo), automatically detecting city names, countries, and canonical IANA timezones (e.g. `Europe/Madrid`, `Asia/Tokyo`, `America/New_York`).
+5. **Screensaver Interactive Button Removal (`OledScreensaver.vue`):**
+   - Removed the theme switcher pill from the ambient screensaver to prevent accidental taps; clock theme selection and live testing are now cleanly centralized in Settings.
+6. **Main View Pomodoro & GitHub Click-to-Expand (`StandbyWorkHub.vue`, `App.vue`):**
+   - Clicking the active Pomodoro card or GitHub developer activity card in `StandbyWorkHub` now opens their full-screen widgets immediately.
+7. **Zen / Deep Focus Fullscreen Mode for Pomodoro (`PomodoroView.vue`):**
+   - Added a dedicated "Zen Focus" button that expands the active Pomodoro timer into an AMOLED full-screen distraction-free focus display with an ambient glowing dial, oversized timer, and single-tap controls.
+
+### 2. Verification
+- `npm run build` (`vue-tsc && vite build`) passed with 0 errors in 1.47s.
+- Bundle size: ~439.1 kB static (~119.1 kB gzipped).
+
+---
+
+## Log Entry: 2026-11-15 (Entry 25)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Phase 5 Implementation & Full Verification: Zero-Credentials Calendar, Smart Pomodoro, Habits, Timezones, LAN Clipboard, Screensaver Clock Skins & Daily Quotes
+
+### 1. Features Implemented & Integrated
+1. **Ambient Screensaver Themes & Daily Mindset Quote (`OledScreensaver.vue`, `screensaver.ts`, `quotes.json`):**
+   - Built selectable clock face themes for AMOLED sleep mode: **Retro Flip Clock** (3D mechanical split cards), **Word Clock** (typographic phrase matrix), and **Minimalist Typography Clock**.
+   - Integrated curated stoic/mindset quotes collection displayed beneath the clock in low-contrast dimmed text (`#666666`), preserving AMOLED power savings, zero burn-in, and 0 widget-slot penalty.
+2. **Daily Habit & Ritual Tracker (`habits.ts`, `HabitCard.vue`, `HabitsView.vue`):**
+   - Built 1-tap touch habit tracker with streak counters (`🔥 X days`) and interactive 7-day GitHub-style visual dot streaks.
+   - Full management view with add/delete modals and customizable emoji icons.
+3. **Configurable World Clock & Team Timezones (`timezones.ts`, `TimezoneBar.vue`, `TimezoneView.vue`):**
+   - User-configurable city and IANA timezone slots with custom labels (e.g. "Manager", "US HQ", "Client").
+   - Dynamic availability status classification: `🟢 Working Hours`, `🟡 Evening`, `🌙 Sleeping`.
+   - Built interactive meeting time scrubber/planner slider (`-12h` to `+12h`).
+4. **Smart Desk Pomodoro Session Timer (`pomodoro.ts`, `PomodoroCard.vue`, `PomodoroView.vue`):**
+   - State machine (`idle | focus | short_break | long_break`) with circular SVG progress dial and completed sessions tally.
+   - Web Audio API gentle harmonic bell chime on phase transitions.
+   - Home Assistant scene integration: automatically triggers configurable Focus scenes (cool white task light) and Relax scenes (warm amber). *Strictly no music auto-sync.*
+5. **Web-Based Shared LAN Clipboard (`public/clip.html`, `vite.config.ts`, `clipboard.ts`, `ClipboardCard.vue`, `ClipboardView.vue`):**
+   - Zero scripts or daemons on external devices: Any device on the local network navigates to `/clip` in a browser.
+   - Real-time LAN synchronization with `/api/clipboard` REST endpoints, rolling 5-clip history, and 1-tap copy/push.
+6. **Zero-Credentials Google Calendar & Agenda Widget (`calendar.ts`, `CalendarCard.vue`, `CalendarView.vue`):**
+   - Complete company privacy isolation: reads secret read-only iCal (`.ics`) feed via server proxy bridge without logging into company accounts.
+   - Built Meeting Radar alert pill in `TopBar.vue` and Standby Work Hub that flashes when meetings start in `< 10 minutes`.
+   - Lean mock testing mode with 2 realistic sample events for immediate testing.
+7. **Customizable Favorites Limit & Full Catalog Wiring (`favorites.ts`, `SettingsModal.vue`, `ControlCenterDrawer.vue`, `FavoriteWidgetsPanel.vue`, `App.vue`):**
+   - Added user-configurable `Max Pinned Favorites` setting (2, 3, or 4 widgets; default: 2) in Settings for tablet compatibility.
+   - Expanded Control Center drawer to render all 11 catalog widgets with star favorite pins.
+
+### 2. Verification
+- `npm run build` (`vue-tsc && vite build`) passed with 0 errors in 1.51s.
+- Bundle size: ~416.4 kB static (~113.8 kB gzipped).
+
+---
+
 ## Log Entry: 2026-11-15 (Entry 24)
 **Author:** Antigravity AI Assistant & Utkarsh  
 **Phase:** Phase 5 Architectural Planning & Feature Roadmap Formulation (Calendar, Pomodoro, Habits, Timezones, Web Clipboard, Clock Skins)

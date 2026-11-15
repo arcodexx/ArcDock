@@ -48,11 +48,11 @@ const handleToggleFav = () => {
           :class="favorites.isFavorite(target)
             ? 'bg-amber-400/20 border-amber-400/50 text-amber-300 shadow-sm'
             : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:bg-white/10'"
-          title="Pin this widget as one of your 2 favorites on the playing right pane"
+          title="Pin this widget as a favorite on the playing right pane"
         >
           <Star class="w-4 h-4" :class="favorites.isFavorite(target) ? 'fill-amber-400 text-amber-400' : ''" />
           <span class="hidden sm:inline">{{ favorites.isFavorite(target) ? 'Pinned Favorite' : 'Mark Favorite' }}</span>
-          <span class="text-[10px] opacity-80 font-mono">({{ favorites.favoriteWidgets.length }}/2)</span>
+          <span class="text-[10px] opacity-80 font-mono">({{ favorites.favoriteWidgets.length }}/{{ favorites.maxFavorites }})</span>
         </button>
 
         <button

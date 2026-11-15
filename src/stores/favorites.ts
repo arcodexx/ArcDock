@@ -1,7 +1,18 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-export type WidgetType = 'climate' | 'lights' | 'github' | 'deliveries' | 'weather' | 'network';
+export type WidgetType =
+  | 'climate'
+  | 'lights'
+  | 'github'
+  | 'deliveries'
+  | 'weather'
+  | 'network'
+  | 'calendar'
+  | 'pomodoro'
+  | 'habits'
+  | 'timezones'
+  | 'clipboard';
 
 export interface WidgetMeta {
   id: WidgetType;
@@ -47,19 +58,52 @@ export const WIDGET_CATALOG: Record<WidgetType, WidgetMeta> = {
     subtitle: 'DNS ping & sparkline',
     category: 'Diagnostics',
   },
+  calendar: {
+    id: 'calendar',
+    title: 'Daily Agenda',
+    subtitle: 'Meetings & radar alert',
+    category: 'Productivity',
+  },
+  pomodoro: {
+    id: 'pomodoro',
+    title: 'Focus Pomodoro',
+    subtitle: 'Deep work & HA desk scenes',
+    category: 'Productivity',
+  },
+  habits: {
+    id: 'habits',
+    title: 'Daily Habits',
+    subtitle: '1-tap rituals & 7-day streak',
+    category: 'Habits',
+  },
+  timezones: {
+    id: 'timezones',
+    title: 'World Clock',
+    subtitle: 'Global cities & time difference',
+    category: 'Glance',
+  },
+  clipboard: {
+    id: 'clipboard',
+    title: 'LAN Clipboard',
+    subtitle: 'Cross-device web paste & copy',
+    category: 'Utilities',
+  },
 };
 
 const STORAGE_KEY = 'arcdock_favorite_widgets';
-const MAX_FAVORITES = 2;
+const MAX_FAVORITES_KEY = 'arcdock_max_favorites';
 
 export const useFavoritesStore = defineStore('favorites', () => {
+  const storedMax = localStorage.getItem(MAX_FAVORITES_KEY);
+  const maxFavorites = ref<number>(storedMax ? Math.min(4, Math.max(2, parseInt(storedMax, 10))) : 2);
+
   const loadFavorites = (): WidgetType[] => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.slice(0, MAX_FAVORITES) as WidgetType[];
+          return parsed.slice(0, maxFavorites.value) as WidgetType[];
         }
       }
     } catch {}
@@ -68,6 +112,16 @@ export const useFavoritesStore = defineStore('favorites', () => {
 
   const favoriteWidgets = ref<WidgetType[]>(loadFavorites());
   const alertMessage = ref<string | null>(null);
+
+  const setMaxFavorites = (count: number) => {
+    const clamped = Math.min(4, Math.max(2, count));
+    maxFavorites.value = clamped;
+    localStorage.setItem(MAX_FAVORITES_KEY, clamped.toString());
+    if (favoriteWidgets.value.length > clamped) {
+      favoriteWidgets.value = favoriteWidgets.value.slice(0, clamped);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(favoriteWidgets.value));
+    }
+  };
 
   const isFavorite = (id: WidgetType): boolean => {
     return favoriteWidgets.value.includes(id);
@@ -81,8 +135,8 @@ export const useFavoritesStore = defineStore('favorites', () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(favoriteWidgets.value));
       return true;
     } else {
-      if (favoriteWidgets.value.length >= MAX_FAVORITES) {
-        alertMessage.value = `Maximum ${MAX_FAVORITES} favorites reached. Unmark one first!`;
+      if (favoriteWidgets.value.length >= maxFavorites.value) {
+        alertMessage.value = `Maximum ${maxFavorites.value} favorites reached. Unmark one first!`;
         return false;
       }
       favoriteWidgets.value.push(id);
@@ -97,10 +151,11 @@ export const useFavoritesStore = defineStore('favorites', () => {
 
   return {
     favoriteWidgets,
+    maxFavorites,
     alertMessage,
-    maxFavorites: MAX_FAVORITES,
     isFavorite,
     toggleFavorite,
+    setMaxFavorites,
     clearAlert,
   };
 });

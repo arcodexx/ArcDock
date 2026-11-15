@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ArcDock — Shared LAN Clipboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #000000;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 1rem;
+    }
+    .container {
+      width: 100%;
+      max-width: 580px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #262626;
+      padding-bottom: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .brand-icon {
+      width: 2rem;
+      height: 2rem;
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; }
+    .badge {
+      font-size: 0.7rem;
+      font-family: monospace;
+      padding: 0.2rem 0.5rem;
+      border-radius: 9999px;
+      background: #171717;
+      color: #10b981;
+      border: 1px solid #262626;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+    }
+    .card {
+      background: #0a0a0a;
+      border: 1px solid #262626;
+      border-radius: 1rem;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #a3a3a3;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      background: #141414;
+      border: 1px solid #262626;
+      border-radius: 0.75rem;
+      color: #ffffff;
+      padding: 0.75rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+    }
+    textarea:focus { border-color: #10b981; }
+    .btn {
+      width: 100%;
+      padding: 0.85rem;
+      border: none;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+    }
+    .btn-primary {
+      background: #10b981;
+      color: #000000;
+    }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-secondary {
+      background: #171717;
+      color: #e5e5e5;
+      border: 1px solid #262626;
+    }
+    .btn-secondary:active { transform: scale(0.98); background: #262626; }
+    .clip-preview {
+      background: #141414;
+      border: 1px solid #262626;
+      border-radius: 0.75rem;
+      padding: 0.85rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 160px;
+      overflow-y: auto;
+      color: #f5f5f5;
+    }
+    .clip-meta {
+      font-size: 0.7rem;
+      color: #737373;
+      font-family: monospace;
+      display: flex;
+      justify-content: space-between;
+    }
+    .history-item {
+      background: #141414;
+      border: 1px solid #262626;
+      border-radius: 0.6rem;
+      padding: 0.6rem 0.8rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+    }
+    .history-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #d4d4d4;
+      font-family: monospace;
+      flex: 1;
+    }
+    .btn-copy-small {
+      background: #262626;
+      border: none;
+      color: #ffffff;
+      padding: 0.25rem 0.6rem;
+      border-radius: 0.4rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      background: #10b981;
+      color: #000;
+      padding: 0.6rem 1.2rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s ease;
+      pointer-events: none;
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <div>
+          <h1>ArcDock Clipboard</h1>
+        </div>
+      </div>
+      <div class="badge">
+        <div class="badge-dot"></div>
+        <span>LAN Active</span>
+      </div>
+    </header>
+
+    <!-- Paste & Push Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>Send to ArcDock</span>
+        <span style="font-size: 0.65rem; color: #737373;">Instant Sync</span>
+      </div>
+      <textarea id="inputText" placeholder="Paste or type text, code, or link here..."></textarea>
+      <button class="btn btn-primary" id="btnPush">
+        🚀 Push to ArcDock Screen
+      </button>
+    </div>
+
+    <!-- Active on ArcDock Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>Currently on ArcDock</span>
+        <button class="btn-copy-small" id="btnRefresh">🔄 Refresh</button>
+      </div>
+      <div class="clip-preview" id="currentClip">No clips sent yet.</div>
+      <div class="clip-meta" id="clipMeta">
+        <span>Device: --</span>
+        <span>Time: --</span>
+      </div>
+      <button class="btn btn-secondary" id="btnCopyCurrent">
+        📋 Copy to This Device
+      </button>
+    </div>
+
+    <!-- Recent Clips History -->
+    <div class="card" id="historyCard" style="display: none;">
+      <div class="card-title">
+        <span>Recent Clips (Last 5)</span>
+      </div>
+      <div id="historyList" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copied to clipboard!</div>
+
+  <script>
+    const inputText = document.getElementById('inputText');
+    const btnPush = document.getElementById('btnPush');
+    const currentClip = document.getElementById('currentClip');
+    const clipMeta = document.getElementById('clipMeta');
+    const btnCopyCurrent = document.getElementById('btnCopyCurrent');
+    const btnRefresh = document.getElementById('btnRefresh');
+    const historyCard = document.getElementById('historyCard');
+    const historyList = document.getElementById('historyList');
+    const toast = document.getElementById('toast');
+
+    let activeClipText = '';
+
+    function showToast(msg) {
+      toast.innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    function detectDevice() {
+      const ua = navigator.userAgent;
+      if (/iPhone|iPad|iPod/.test(ua)) return 'iPhone / iOS';
+      if (/Android/.test(ua)) return 'Android Phone';
+      if (/Macintosh/.test(ua)) return 'MacBook / Mac';
+      if (/Windows/.test(ua)) return 'Windows PC';
+      return 'Web Client';
+    }
+
+    async function fetchClipboard() {
+      try {
+        const res = await fetch('/api/clipboard');
+        if (res.ok) {
+          const data = await res.json();
+          renderClipboard(data);
+        }
+      } catch (err) {
+        console.warn('Clipboard fetch failed:', err);
+      }
+    }
+
+    function renderClipboard(data) {
+      if (data.current && data.current.text) {
+        activeClipText = data.current.text;
+        currentClip.innerText = data.current.text;
+        const time = new Date(data.current.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        clipMeta.innerHTML = `<span>From: <strong>${data.current.device}</strong></span><span>${time}</span>`;
+      } else {
+        activeClipText = '';
+        currentClip.innerText = 'No clips sent yet.';
+        clipMeta.innerHTML = `<span>Device: --</span><span>Time: --</span>`;
+      }
+
+      if (data.history && data.history.length > 0) {
+        historyCard.style.display = 'flex';
+        historyList.innerHTML = '';
+        data.history.forEach((item) => {
+          const row = document.createElement('div');
+          row.className = 'history-item';
+          row.innerHTML = `
+            <span class="history-text">${escapeHtml(item.text)}</span>
+            <button class="btn-copy-small" onclick="copyText('${escapeAttr(item.text)}')">Copy</button>
+          `;
+          historyList.appendChild(row);
+        });
+      } else {
+        historyCard.style.display = 'none';
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function escapeAttr(str) {
+      return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    window.copyText = async function(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('Copied to clipboard!');
+      } catch (e) {
+        // Fallback
+        const el = document.createElement('textarea');
+        el.value = text;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        showToast('Copied to clipboard!');
+      }
+    };
+
+    btnPush.addEventListener('click', async () => {
+      const text = inputText.value.trim();
+      if (!text) return;
+
+      try {
+        const res = await fetch('/api/clipboard', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            device: detectDevice(),
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          renderClipboard(data);
+          inputText.value = '';
+          showToast('Sent to ArcDock screen!');
+        }
+      } catch (err) {
+        alert('Could not push to ArcDock: ' + err.message);
+      }
+    });
+
+    btnCopyCurrent.addEventListener('click', () => {
+      if (activeClipText) {
+        copyText(activeClipText);
+      } else {
+        showToast('No clip to copy!');
+      }
+    });
+
+    btnRefresh.addEventListener('click', () => {
+      fetchClipboard();
+      showToast('Refreshed!');
+    });
+
+    // Auto-poll every 2.5s
+    fetchClipboard();
+    setInterval(fetchClipboard, 2500);
+  </script>
+</body>
+</html>

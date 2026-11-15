@@ -316,6 +316,17 @@ export const useSpotifyStore = defineStore('spotify', () => {
     }
   };
 
+  const pause = async () => {
+    if (!playback.value || !playback.value.is_playing) return;
+    playback.value.is_playing = false;
+    optimisticLockUntil = Date.now() + 3000;
+    try {
+      await api.pause();
+    } catch (err: any) {
+      error.value = err.message;
+    }
+  };
+
   const next = async () => {
     optimisticLockUntil = Date.now() + 2500;
     try {
@@ -567,6 +578,7 @@ export const useSpotifyStore = defineStore('spotify', () => {
     stopPolling,
     manualRefresh,
     togglePlay,
+    pause,
     toggleLikeCurrentTrack,
     next,
     previous,
