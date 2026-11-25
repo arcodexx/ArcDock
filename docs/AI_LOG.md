@@ -4,6 +4,415 @@ This log tracks all architectural discussions, technical decisions, completed st
 
 ---
 
+## Log Entry: 2026-11-25 (Entry 39)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Universal Hardware Documentation (Any Phone/Tablet/OS) & Termux HTTP Server Architecture (`darkhttpd` vs. `arcdock_api.py`)
+
+### 1. User Directives & Goals
+1. Ensure the hardware deployment guide is strictly universal for **any Android phone, tablet, or touch display** (Google Pixel, Samsung Galaxy, OnePlus, Motorola, Xiaomi/Redmi, Lenovo, Fire HD, etc.), rather than appearing tied to Xiaomi / "Mi" devices.
+2. Explicitly document `darkhttpd` (installed via `pkg install darkhttpd` in `setup-phone-ha.sh`) and clarify its role alongside `arcdock_api.py` across all documentation.
+
+### 2. Solutions & Documentation Updates
+1. **Universal Hardware Deployment Guide (`docs/DEPLOYMENT_GUIDE.md`):**
+   - Transformed the guide into a brand-agnostic field manual for all Android devices running Android 9 through Android 16+.
+   - Added Section 2.1 highlighting that **Stock Factory Android requires zero flashing, zero root, and zero bootloader unlocking**; custom ROMs (LineageOS) are strictly optional.
+   - Documented universal bootloader unlocking methods across OEMs (Pixel fastboot flashing unlock, Samsung Download Mode, Xiaomi Mi Unlock, generic tablet tools).
+   - Formulated universal power/battery longevity strategies: LineageOS charging control (80%), Samsung Protect Battery (80/85%), Pixel Adaptive Charging, or Home Assistant smart plug automation for stock devices without built-in caps.
+   - Reframed Snapdragon 732G / Redmi Note 10 Pro as our tested reference benchmark rather than a hard requirement.
+2. **Termux HTTP Server Options Documented (`README.md` & `docs/DEPLOYMENT_GUIDE.md` Section 9):**
+   - **`darkhttpd` (C Static Daemon):** Documented its footprint (< 2 MB RAM, ~50 KB binary, 0% CPU) and usage (`darkhttpd ~/arcdock/dist --port 3000 &`) for low-spec devices or pure static serving.
+   - **`arcdock_api.py` (Unified Python 3 Server):** Documented its value-add features: LAN Clipboard (`/clip` UI and `/api/clipboard`), host IP discovery (`/api/system/info`), and touchscreen server restart (`/api/system/restart-server`).
+3. **Quick Start Alignment (`README.md`):**
+   - Clarified that `setup-phone-ha.sh` provisions `darkhttpd` and native Python 3 toolchains.
+   - Added alternative run command for `darkhttpd` in Step 3.
+
+---
+
+## Log Entry: 2026-11-25 (Entry 38)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Zero-Touch Post-Boot Warm-Up Sync & Online Wake-Up Automation
+
+### 1. Root Cause: Manual Refresh Needed After Power On/Off
+- User reported having to manually refresh the page after powering the phone off and on.
+- Root Cause Analysis:
+  1. On cold boot, Termux and Fully Kiosk Browser start up and load `http://localhost:3000` within 1–3 seconds.
+  2. However, the phone's Android Wi-Fi radio typically takes 5–15 seconds to associate with the router and obtain a DHCP IP lease.
+  3. Consequently, the initial requests to external APIs (Google Calendar/Outlook `.ics` feed, GitHub API, Weather) dispatched at 0s fail with network errors.
+  4. Once Wi-Fi finally connected, there was no automated retry, leaving the calendar and dev widgets empty until a manual refresh was clicked.
+
+### 2. Solutions Implemented
+1. **Staggered Post-Boot Warm-Up Sync (`TopBar.vue`):**
+   - Added automated warm-up sync triggers at **5 seconds** and **15 seconds** after mount.
+   - Ensures that as soon as Android completes DHCP handshake, a fresh sync automatically populates Calendar, GitHub, and Weather.
+2. **Network State Listeners (`online` & `visibilitychange`):**
+   - Attached `window.addEventListener('online', ...)` to trigger an immediate full sync whenever network connectivity is established or restored.
+   - Attached `document.addEventListener('visibilitychange', ...)` to trigger a sync when the display/WebView wakes up.
+3. **Resilient In-Store Fallbacks (`calendar.ts` & `github.ts`):**
+   - If an initial fetch fails at boot while the store is still empty, automatically schedules a 10-second retry.
+
+### 3. Verification
+- `npm run build` compiled with 0 TypeScript/Vite errors (1.65s).
+
+---
+
+## Log Entry: 2026-11-25 (Entry 37)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Automated Background Refresh (Calendar 30m / GitHub 1h) & iCal Duplicate Event Deduplication
+
+### 1. Root Cause: Duplicate Meeting on Next Day
+- User reported seeing the same meeting twice tomorrow.
+- Root Cause Analysis:
+  1. **Cancelled / Modified Meeting Instances in iCal:** When Google Calendar or Outlook updates or reschedules a meeting, the exported `.ics` payload often contains both the old entry with `STATUS:CANCELLED` and the new confirmed entry. The previous parser had no check for `STATUS:CANCELLED`, pushing both entries.
+  2. **Multi-Calendar / Recurrence UID Collisions:** In shared calendar setups, duplicate `VEVENT` blocks with identical titles and start times can appear in the feed. The previous parser blindly pushed all parsed events into `rawEvents` without deduplication.
+  3. **RFC 5545 Line Unfolding:** Multi-line fields (wrapped with CRLF/LF + space or tab) could be fragmented if line unfolding didn't strip whitespace continuation.
+
+### 2. Solutions Implemented
+1. **Intelligent Event Deduplication & Status Filtering (`src/stores/calendar.ts`):**
+   - Automatically drops any `VEVENT` where `STATUS: CANCELLED`.
+   - Normalizes titles and checks timestamps within a 60-second window.
+   - If an event with the same UID+Time or NormalizedTitle+Time already exists, merges any richer metadata (such as Google Meet/Zoom URLs, location, or description) instead of creating a second card.
+   - Verified in Node: duplicate entries are merged, cancelled meetings are dropped, and distinct recurring meetings across different days are preserved.
+2. **Automated Refresh Intervals:**
+   - **Calendar (`calendarStore`):** Added automated background polling every **30 minutes** (`30 * 60 * 1000 ms`).
+   - **GitHub (`githubStore`):** Added automated background polling every **1 hour** (`60 * 60 * 1000 ms`).
+   - **Parcels (`deliveryStore`):** Kept strictly manual to protect courier API rate limits.
+3. **Lifecycle Management (`src/components/TopBar.vue`):**
+   - Starts `calendarStore.startPolling()` and `githubStore.startPolling()` on mount.
+   - Cleans up timers on unmount.
+
+### 3. Verification
+- `npm run build` compiled with 0 TypeScript/Vite errors (1.66s).
+
+---
+
+## Log Entry: 2026-11-24 (Entry 36)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Android Touch Target Ergonomics & Button Sizing Optimization (Material Guidelines)
+
+### 1. Architectural Motivation & User Requirements
+- The user requested increasing button and touch target sizes across the entire ArcDock UI.
+- Initial designs were optimized for desktop/mouse clicks with small targets (e.g. 24–28px icons).
+- In physical dock usage, interactions occur via finger touch on a 6.67" Xiaomi AMOLED display in landscape orientation.
+- **Google / Android Material Design Guidelines:**
+  - Recommended minimum interactive touch target: **48 × 48 dp** (or minimum 44 × 44 px).
+  - Minimum visual / dense layout hit area: **36–44 px** with adequate padding/spacing to prevent accidental miss-taps.
+  - Tactile feedback: clear active scaling (`active:scale-90` / `active:scale-95`).
+- **Constraint:** Zero-scroll preservation on the landscape dashboard (~360–390px viewport height). Enlarge touch targets and hit areas without inflating container heights.
+
+### 2. Components Upgraded
+1. **`TopBar.vue`:**
+   - Operational mode toggle: enlarged to `w-10 h-10 min-w-[40px] min-h-[40px] p-2`.
+   - Settings & Dock Power buttons: enlarged to `w-10 h-10 min-w-[40px] min-h-[40px] p-2`.
+   - Pill buttons (Weather, Meeting Radar, Pomodoro, Network Ping): enlarged to `min-h-[36px] px-3 py-1.5`.
+2. **`MediaBar.vue`:**
+   - Target device pill: enlarged to `min-h-[36px] px-3 py-1.5`.
+   - Manual sync button: enlarged to `w-9 h-9 min-w-[36px] min-h-[36px]`.
+   - Search, Playlists, Queue navigation: enlarged to `w-9 h-9 min-w-[36px] min-h-[36px]` with `w-4 h-4` icons.
+3. **`NowPlaying.vue`:**
+   - Spotify Like (+/check) button: enlarged to `w-10 h-10 min-w-[40px] min-h-[40px]`.
+   - Media controls (Shuffle, Prev, Next, Repeat): upgraded to `min-w-[44px] min-h-[44px]`.
+4. **`ClimateCard.vue`:**
+   - Temperature stepper Minus & Plus: enlarged from `w-10 h-10` to `w-11 h-11 min-w-[44px] min-h-[44px]` with `w-5 h-5` icons.
+   - Power button: enlarged to `w-10 h-10 min-w-[40px] min-h-[40px]`.
+   - Mode & Fan dropdown triggers: enlarged to `min-h-[40px] py-2 px-3`.
+   - Popover menu items: upgraded to `min-h-[38px] px-2.5 py-2`.
+5. **`LightCard.vue` & `SwitchCard.vue`:**
+   - Brightness trigger button: enlarged from `w-7 h-7` to `w-9 h-9 min-w-[36px] min-h-[36px]` with `w-4 h-4` icon.
+   - Brightness modal slider: enlarged to `h-12` with `min-h-[40px]` preset chips.
+   - Switch card icon container: enlarged to `w-8 h-8 rounded-xl`.
+6. **`PomodoroCard.vue` & `ClipboardCard.vue`:**
+   - Pomodoro Play/Pause: `min-h-[38px] px-4 py-2 text-xs font-bold`.
+   - Pomodoro Skip: `w-9 h-9 min-w-[36px] min-h-[36px]`.
+   - Clipboard `/clip` QR trigger: `min-h-[30px] px-2.5 py-1 text-xs`.
+   - Clipboard Copy: `min-h-[36px] px-3.5 py-1.5 text-xs font-semibold`.
+7. **`FavoriteWidgetsPanel.vue` & `DeskIoTPanel.vue`:**
+   - "All Widgets" button: `min-h-[36px] px-3 py-1.5 text-xs font-bold`.
+   - Panel collapse & maximize buttons: `w-9 h-9 min-w-[36px] min-h-[36px]`.
+   - Quick scene chips: `min-h-[40px] px-2.5 py-2 text-xs font-bold`.
+   - All-Off and Smart Desk settings buttons: `w-9 h-9 min-w-[36px] min-h-[36px]`.
+8. **`SplitPane.vue`:**
+   - Collapsed floating expand tab: enlarged from `w-5 h-12` (20px) to `w-7 h-14` (28x56px) for easy thumb catching from screen bezel.
+9. **Drawers & Modals (`ControlCenterDrawer.vue`, `QRCodeModal.vue`, `DockPowerModal.vue`, `SettingsModal.vue`, `HASettingsModal.vue`, `FullScreenView.vue`, `DeviceDrawer.vue`, `QueueDrawer.vue`, `SearchDrawer.vue`, `PlaylistDrawer.vue`):**
+   - Standardized close (`X`) buttons to `w-10 h-10 min-w-[40px] min-h-[40px]`.
+   - Primary action buttons: standardized to minimum `min-h-[40px]` - `min-h-[44px]`.
+   - Favorite star buttons in Control Center: standardized to `w-9 h-9 min-w-[36px] min-h-[36px]`.
+
+### 3. Verification
+- `npm run build` compiled with 0 TypeScript/Vite errors (1.55s).
+
+---
+
+## Log Entry: 2026-11-24 (Entry 35)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Complete Cross-Timezone iCal Resolution (VTIMEZONE Indexing & Windows/IANA Offsets)
+
+### 1. Root Cause Discovery
+- User reported a 3:30 PM IST meeting displaying as 11:00 AM (an exact 4.5-hour delta).
+- 11:00 AM in UTC+1 (Western Europe, CET, `W. Europe Standard Time`, `Europe/Paris`, `Europe/Berlin`) or 10:00 AM in UTC corresponds exactly to 3:30 PM in IST (`+05:30`).
+- When meetings are scheduled by organizers in other regions or exported via Outlook / Google Calendar, the event specifies `TZID="W. Europe Standard Time"` or similar non-Indian timezone headers.
+- The previous parser only checked for `kolkata|calcutta|india|ist`. For any other `TZID`, it dropped the timezone parameter and parsed `11:00` as if it were a local IST meeting, outputting `11:00 AM`!
+
+### 2. Solutions Implemented
+1. **Dynamic VTIMEZONE Block Indexing (`src/stores/calendar.ts`):**
+   - Scans the entire `.ics` payload for `BEGIN:VTIMEZONE` blocks and parses `TZOFFSETTO` definitions dynamically.
+2. **Known Windows & IANA Timezone Map:**
+   - Added map for `w. europe standard time` (+01:00), `central europe standard time` (+01:00), `gmt standard time` (+00:00), `eastern standard time` (-05:00), `pacific standard time` (-08:00), etc.
+3. **Browser `Intl` Timezone Offset Calculation Fallback:**
+   - For any unrecognized IANA string (e.g. `Europe/Paris`), computes the exact UTC offset at that specific calendar date using `Intl.DateTimeFormat.formatToParts()`.
+4. **All Cases Verified:**
+   - 11:00 AM in `W. Europe Standard Time` -> **3:30 PM IST**.
+   - 11:00 AM in `Europe/Paris` -> **3:30 PM IST**.
+   - 10:00 AM in `UTC` (`...Z`) -> **3:30 PM IST**.
+   - 3:30 PM in `Asia/Kolkata` -> **3:30 PM IST**.
+
+### 3. Verification
+- `npm run build` compiled with 0 TypeScript/Vite errors (1.67s).
+
+---
+
+## Log Entry: 2026-11-24 (Entry 34)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Template Direct Timezone Formatting Elimination in CalendarView
+
+### 1. Root Cause Identified
+- While `src/stores/calendar.ts` parsed and stored events with `startTimeFormatted` and `formattedTimeRange` in IST (`Asia/Kolkata`), `src/components/views/CalendarView.vue` contained raw inline expressions in its template:
+  `{{ new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}`
+- Calling `toLocaleTimeString([])` without an explicit `timeZone` parameter bypassed the store's timezone logic and queried the browser's internal ICU runtime timezone directly. On Android WebView instances initialized before or during OS timezone switches, this outputted times in UTC/GMT.
+
+### 2. Solutions Implemented
+1. **Added `startTimeFormatted` & `endTimeFormatted` to `CalendarEvent` Contract:**
+   - Pre-computed both fields inside `calendar.ts` using `toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true })`.
+2. **Replaced Raw Template Expressions in `CalendarView.vue`:**
+   - Swapped out the raw `new Date(...).toLocaleTimeString([], ...)` with `event.startTimeFormatted` and `event.endTimeFormatted`.
+   - Guaranteed consistent IST rendering across `CalendarCard.vue`, `CalendarView.vue`, and `StandbyWorkHub.vue`.
+
+### 3. Verification
+- `npm run build` compiled with 0 TypeScript/Vite errors (1.80s).
+
+---
+
+## Log Entry: 2026-11-24 (Entry 33)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Calendar & Clock IST (Asia/Kolkata) Timezone Normalization
+
+### 1. Architectural Motivation & User Requirements
+1. **Timezone Discrepancy in Meetings:**
+   - In ArcDock, calendar events from Google/Apple/Outlook iCal feeds were displaying meeting times in UTC/GMT rather than India Standard Time (IST / GMT+5:30).
+2. **Root Causes Identified:**
+   - On freshly flashed LineageOS Android devices without active cellular SIM cards, Android default system timezone is GMT/UTC.
+   - `toLocaleTimeString([], ...)` and `toLocaleDateString([], ...)` called with default arguments default to the device's system timezone (UTC).
+   - iCalendar (.ics) exports use `TZID=Asia/Kolkata` or floating time without trailing `Z`. `parseIcsDate` stripped `TZID` and parsed via `new Date(y, m, d, h, min, s)`, which interprets numbers in the runtime's local timezone (UTC).
+
+### 2. Solutions Implemented
+1. **Explicit IST Timezone Parsing (`src/stores/calendar.ts`):**
+   - Extracted `DTSTART_TZID` and `DTEND_TZID` parameters from iCal headers.
+   - Normalizes floating times and `Asia/Kolkata` times with explicit `+05:30` offset (`new Date("${y}-${m}-${d}T${h}:${min}:${s}+05:30")`).
+   - Explicitly parses `Z` (UTC) timestamps and converts accurately to IST.
+2. **Explicit IST Display Formatting (`src/stores/calendar.ts` & `src/components/TopBar.vue`):**
+   - Locked all calendar time formatting (`formatRange`) to `timeZone: 'Asia/Kolkata'`.
+   - Locked calendar day comparison (`isToday`, `isTomorrow`, and `startDateFormatted`) to `timeZone: 'Asia/Kolkata'` using ISO date keys (`YYYY-MM-DD`).
+   - Updated top bar clock to format with `timeZone: 'Asia/Kolkata'`.
+
+### 3. Verification
+- `npm run build` compiled with 0 TypeScript/Vite errors (1.60s).
+
+---
+
+## Log Entry: 2026-11-24 (Entry 32)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Calendar iCal Proxy Implementation in Production Server & ShipTrack Proxying
+
+### 1. Architectural Motivation & User Requirements
+1. **Calendar iCal Sync Failure on Physical Device:**
+   - On the phone, adding an iCal feed link (`https://calendar.google.com/...` or `webcal://...`) fetched nothing and left the calendar widget empty.
+2. **Missing Production Proxy Endpoint:**
+   - Browsers and Android WebView enforce strict Cross-Origin Resource Sharing (CORS) security policies. External calendar providers (Google, Apple, Outlook) do not serve wildcard `Access-Control-Allow-Origin: *` headers on iCal feeds.
+   - The dev server used Vite middleware (`vite.config.ts`) to proxy `/api/calendar/feed`. However, the production Python server (`scripts/arcdock_api.py`) lacked the `/api/calendar/feed` proxy handler, causing all calendar requests to 404 or fall back to SPA HTML.
+
+### 2. Solutions Implemented
+1. **Production Server iCal CORS Proxy (`scripts/arcdock_api.py`):**
+   - Added `/api/calendar/feed` endpoint to `ArcDockRequestHandler`.
+   - Normalizes `webcal://` URLs to `https://`.
+   - Uses `urllib.request` with browser User-Agent headers and 10s timeout to fetch upstream `.ics` files server-side on the phone, returning `Content-Type: text/calendar; charset=utf-8` directly to the client.
+2. **ShipTrack Parcel Tracking Proxies:**
+   - Implemented upstream proxying for `/api/track/` and `/api/carriers` in `scripts/arcdock_api.py`, matching the Vite dev bridge behavior.
+3. **Frontend `webcal://` Sanitization (`src/stores/calendar.ts`):**
+   - Added automatic normalization of `webcal://` scheme to `https://` in `setFeedUrl()`.
+
+### 3. Verification
+- `npm run build` compiled cleanly with 0 TypeScript/Vite errors (2.35s).
+
+---
+
+## Log Entry: 2026-11-24 (Entry 31)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Wireless LAN Discovery, Battery Restriction Safeguards & Zero-Touch Boot Automation
+
+### 1. Architectural Motivation & User Requirements
+1. **Wireless LAN Connectivity from Mac & Other Devices:**
+   - When the user disconnected the target Redmi Note 10 Pro from USB, accessing `/clip` and Home Assistant (`:8123`) from external devices over home Wi-Fi (`192.168.1.29`) timed out.
+2. **SSH Process Suicide Bug (Code 255):**
+   - In automated deployment scripts, executing inline `pkill -9 -f arcdock_api.py` caused the parent `bash -c` process running the SSH session to match its own cmdline, killing itself immediately and aborting server restart.
+3. **HTTP HEAD vs GET Route Resolution:**
+   - Probing tools such as `curl -I` send `HTTP HEAD` requests. Python's `SimpleHTTPRequestHandler` delegates `HEAD` requests to `do_HEAD()` which was not implemented, returning `404 File not found` on valid endpoints like `/api/info`.
+4. **Permanent Autostart & Origin Preservation:**
+   - The device requires persistent autostart across reboots that binds to `0.0.0.0` for LAN access while launching Fully Kiosk on `http://127.0.0.1:3000` to preserve saved Home Assistant tokens and configuration.
+
+### 2. Solutions Implemented
+1. **Dedicated On-Device Server Controller (`scripts/restart-dock.sh`):**
+   - Transferred `restart-dock.sh` to `~/restart-dock.sh`.
+   - Replaced fragile shell strings with safe regex process pattern matching: `pgrep -f '[p]ython.*/arcdock_api\.py'`.
+   - Eliminates self-matching in SSH process groups, ensuring clean server restarts without dropping SSH sessions.
+2. **Android Background Battery & Network Optimization:**
+   - Activated persistent `termux-wake-lock` to prevent Android Bionic and Qualcomm radio power-saving from sleeping incoming TCP sockets when running on battery.
+   - Pinned Termux app battery usage to "Unrestricted" in LineageOS settings.
+3. **HTTP HEAD Method Support (`scripts/arcdock_api.py`):**
+   - Implemented `do_HEAD` in `ArcDockRequestHandler`, returning identical headers and `Content-Length` for `/api/info`, `/clip`, `/api/clipboard`, and SPA routes without writing the message body.
+4. **Zero-Touch Autostart Automation (`~/.termux/boot/start-arcdock.sh`):**
+   - Configured Termux:Boot script on device initializing wake lock, `sshd`, `arcdock_api.py`, Home Assistant Core (`hass`), and launching Fully Kiosk Browser on `http://127.0.0.1:3000`.
+
+### 3. Verification & Live Operational Status
+- `curl http://192.168.1.29:3000/api/info` verified returning live IP and port mapping:
+  `{"ip": "192.168.1.29", "port": 3000, "ha_port": 8123, "ha_url": "http://192.168.1.29:8123", "clip_url": "http://192.168.1.29:3000/clip"}`
+- Wireless SSH on port 8022 verified functional from Mac.
+- LAN Clipboard (`http://192.168.1.29:3000/clip`) verified functional from Mac browser.
+- Home Assistant (`http://192.168.1.29:8123`) verified functional from Mac browser.
+
+---
+
+## Log Entry: 2026-11-24 (Entry 30)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Landscape Ergonomics, Unified Smart Desk Widget, Mock Mode Purge & Spotify OAuth Routing
+
+### 1. Architectural Motivation & User Requirements
+1. **Landscape QR Code Clipping:**
+   - In landscape orientation (~360px viewport height on mobile), the previous vertical modal caused the QR code canvas and copy buttons to overflow and clip vertically.
+2. **Widget Redundancy on Main Screen:**
+   - The dashboard featured separate cards for "Smart Lights" and "Smart AC Climate". The user requested consolidating these into a single unified "Smart Desk IoT" widget on the main screen and in the favorites drawer.
+3. **Mock Mode Purge:**
+   - Home Assistant is now running natively bare-metal on Termux (port 8123). The user requested completely eliminating "Mock Mode", simulation fallbacks, and mock toggles. HA status must reflect real connection state only (Live or Offline).
+4. **Spotify OAuth 404 Error:**
+   - Authorizing Spotify redirected to `http://127.0.0.1:3000/callback`, returning a 404 error from Python's `SimpleHTTPRequestHandler` because `/callback` was not an existing static file on disk.
+5. **Zero-Typing Mac Management CLI:**
+   - The user requested executing all deployment, reload, process monitoring, and restart tasks directly from their Mac terminal without typing on the phone's touch keyboard.
+
+### 2. Solutions Implemented
+1. **Horizontal Side-by-Side QR Modal (`src/components/common/QRCodeModal.vue`):**
+   - Redesigned into a horizontal flex layout with a crisp 144px QR code canvas on the left, and badge, copy button, and link launcher on the right.
+   - Reduced overall modal height to ~200px (comfortably fitting in ~360px viewports without any scrollbars or clipping).
+2. **Consolidated "Smart Desk IoT" Widget (`smartdesk`):**
+   - Replaced `'climate'` and `'lights'` keys with unified `'smartdesk'` in `src/stores/favorites.ts`.
+   - Added automatic backward-compatibility migration in `loadFavorites()` so legacy localStorage entries seamlessly update to `'smartdesk'`.
+   - Unified `FavoriteWidgetsPanel.vue` and `ControlCenterDrawer.vue` to show climate controls, quick scenes, and lighting in a single card.
+3. **Total Removal of Mock Mode:**
+   - Removed `'mock'` from `ConnectionStatus` type in `src/types/homeAssistant.ts`.
+   - Removed `INITIAL_MOCK_ENTITIES`, `isMockMode`, `setMockMode`, and all simulation fallback branches from `src/stores/homeAssistant.ts`.
+   - Stripped mock toggles and banners from `HASettingsModal.vue`, `DeskIoTPanel.vue`, and `SettingsModal.vue`.
+4. **SPA Fallback Routing in `arcdock_api.py` & Spotify Callback Cleanup:**
+   - Added SPA fallback logic in `ArcDockRequestHandler.do_GET`: routes without matching disk files (e.g. `/callback`) now serve `index.html` with explicit `no-cache, no-store, must-revalidate` headers.
+   - Updated `useSpotifyStore` in `src/stores/spotify.ts` to replace window location with `/` after successful token exchange.
+5. **Master Mac Phone Control CLI (`scripts/dock.sh`):**
+   - Added npm scripts: `npm run deploy`, `npm run dock:reload`, `npm run dock:status`, `npm run dock:restart`, `npm run dock:ssh`.
+   - Enforced strict `127.0.0.1:3000` origin targeting (preserving saved Home Assistant tokens in localStorage across ADB reloads).
+
+### 3. Verification & Build
+- `npm run build` executed cleanly with 0 TypeScript or Vite bundling errors (1.72s).
+- Verified SPA fallback handler in `scripts/arcdock_api.py`.
+
+---
+
+## Log Entry: 2026-11-24 (Entry 29)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** UX Ergonomics, LAN Discovery & Widget-Scoped Home Assistant Architecture
+
+### 1. Architectural Motivation & User Requirements
+1. **Zero-Friction Cross-Device Access:**
+   - When running ArcDock on the Redmi Note 10 Pro, other devices on the same home Wi-Fi network (laptops, secondary phones, tablets) need quick access to both the **Shared LAN Clipboard** (`http://<PHONE_IP>:3000/clip`) and the **Home Assistant Web UI** (`http://<PHONE_IP>:8123`).
+   - Typing IP addresses and ports manually on touchscreens or laptops is error-prone and clunky.
+2. **Widget-Scoped Settings Ownership:**
+   - Home Assistant configuration (connection parameters, tokens, light sync, pinned entities) previously resided inside the global `SettingsModal.vue`.
+   - The user requested shifting all Home Assistant settings directly into its dedicated widget (`DeskIoTPanel.vue`) with a quick ⚙️ settings button in its header, keeping global settings clean and focused on general app preferences (Spotify, themes, PIN lock).
+
+### 2. Solutions Implemented
+1. **Dynamic LAN IP Auto-Detection (`/api/info` & `src/stores/deviceInfo.ts`):**
+   - Built a lightweight endpoint `GET /api/info` into both Vite dev server (`vite.config.ts`) and the standalone production Python server (`scripts/arcdock_api.py`).
+   - Uses zero-packet UDP socket probing to determine the phone's active outbound Wi-Fi IP address (e.g., `192.168.1.29`).
+   - Created `src/stores/deviceInfo.ts` with local caching (`arcdock_lan_ip`), automatic hostname fallback, and reactive computed URLs (`clipUrl` and `haUrl`).
+2. **Crisp Scannable QR Code Modal (`src/components/common/QRCodeModal.vue`):**
+   - Implemented a reusable, AMOLED-friendly QR code modal powered by `qrcode`.
+   - Features a high-contrast white QR frame, one-tap clipboard copy button, external link launcher, and keyboard `Escape` dismissal.
+3. **Widget-Integrated LAN Access & QR Triggers:**
+   - **LAN Clipboard (`ClipboardCard.vue` & `ClipboardView.vue`):** Added a `/clip` QR trigger pill directly in the card header and a "Scan QR" button in the footer and expanded banner.
+   - **Smart Desk (`DeskIoTPanel.vue` & `HASettingsModal.vue`):** Added a dedicated ⚙️ settings button and clickable status badge in the panel header. Created `HASettingsModal.vue` containing:
+     - LAN Direct Access URL (`http://<IP>:8123`) with prominent "Scan QR" button and copy action.
+     - Live connection status badge and Mock Mode simulation switch.
+     - Home Assistant URL & Long-Lived Access Token configuration with password visibility toggle and "Save & Connect" action.
+     - Room Immersion (Sync Room Lights to Album Art) target selector.
+     - Pinned Primary Desk Entities selector.
+4. **Global Settings Modal Cleanup (`SettingsModal.vue`):**
+   - Removed duplicate HA state, refs, and forms from `SettingsModal.vue`, leaving an informative notice directing users to the Smart Desk widget.
+
+### 3. Verification & Deployment Pipeline
+- Installed `qrcode` and `@types/qrcode`.
+- Production build verified with `npm run build` (`vue-tsc && vite build`) passing cleanly in 1.68s.
+- Updated `package.json` deploy command to automatically sync both `dist/` and `scripts/arcdock_api.py` to the phone via SSH on port `8022`.
+
+---
+
+## Log Entry: 2026-11-23 / 2026-11-24 (Entry 28)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Target Physical Hardware Deployment (Xiaomi Redmi Note 10 Pro) & Bare-Metal Native Home Assistant Core Engine
+
+### 1. Hardware & OS Flashing Milestone
+1. **Target Hardware Profile:**
+   - **Device:** Xiaomi Redmi Note 10 Pro (codename `sweet`, Global).
+   - **SoC:** Qualcomm Snapdragon 732G (8nm Kryo 470, Adreno 618).
+   - **Display:** 6.67" 120Hz Super AMOLED (1080 × 2400).
+   - **Memory:** 6 GB LPDDR4X / 128 GB UFS 2.2 storage.
+2. **Bootloader & ROM Flashing:**
+   - Bootloader unlocked via official `miunlock` tool after the 168-hour cooldown.
+   - Flashed official **LineageOS 23.2 nightly** (`lineage-23.2-20261119-nightly-sweet-signed.zip`) with clean stock `boot.img` and `vbmeta.img`.
+   - **AVB Stability Finding:** Magisk-patched `boot.img` caused fastboot bootloops due to hardware AVB rejection on Android 15/16 LineageOS 23.2. Root was discarded completely; stock signed recovery and boot images were restored for 100% factory-level stability.
+3. **Hardware Health & AMOLED Longevity Settings:**
+   - Enabled built-in 80% charging cap (`Settings → Battery → Charging control`) to eliminate battery swelling for 24/7 wall-docked use.
+   - Enabled 120Hz refresh rate (`Settings → Display → Smooth Display`).
+   - Enabled `Disable child process restrictions` in Developer Options to prevent Android's Phantom Process Killer from terminating background Termux processes.
+
+### 2. The PRoot / udocker Architectural Finding
+1. **The Legacy Kernel 4.14 vs. Android Seccomp Deadlock:**
+   - The device runs Qualcomm Linux kernel 4.14. Modern LineageOS 23.2 applies strict modern Seccomp filters.
+   - `proot-distro` (Ubuntu ARM64) and `udocker` rely on `ptrace(PTRACE_GETEVENTMSG)`. On this kernel combination, `ptrace` deadlocks in uninterruptible kernel sleep (**State `D`**), freezing at byte 0.
+2. **Bare-Metal Pivot:**
+   - Threw away PRoot and udocker completely.
+   - Pivoted to running Home Assistant Core **directly on native Android Bionic libc** via Termux Python. This achieves bare-metal CPU performance, zero ptrace overhead, and zero container freezes.
+
+### 3. Native Python 3.14 & Bionic Toolchain Feats
+1. **Pre-compiled Bionic Packages:**
+   - Leveraged native Termux packages: `python`, `python-psutil` (SELinux patched), `python-pillow`, `python-cryptography` (50.0.2), `python-bcrypt` (5.0.0-3).
+2. **Rust Compilation Memory Capping (`CARGO_BUILD_JOBS=2`):**
+   - Discovered that building Rust wheels with default 8 cores exhausted 6 GB RAM, causing Android Low Memory Killer (LMK) to terminate Termux.
+   - Setting `CARGO_BUILD_JOBS=2` capped memory strictly under 1.2 GB, allowing heavy crates to build safely.
+3. **Multiarch Wheel Extraction Strategy:**
+   - Solved the 45-minute compilation of `uv` (120+ Rust crates with `lto=fat`) and `grpcio` (4,000+ C++ files) by downloading pre-compiled `manylinux_2_17_aarch64` wheels directly from PyPI, renaming them to universal `py3-none-any.whl`, and installing with `--no-deps`.
+4. **Android Operating System Check Patch:**
+   - Home Assistant's `homeassistant/__main__.py` hardcoded `if not sys.platform.startswith(("darwin", "linux")): sys.exit(1)`. On Android, `sys.platform == 'android'`.
+   - Patched to `sys.platform.startswith(("darwin", "linux", "android"))`.
+5. **The Android Bionic Netd DNS Shim (`uv/__main__.py`):**
+   - Home Assistant executes `python -m uv pip install` for on-demand component installation.
+   - Rust's asynchronous resolver (`hickory-dns` in `uv`) looks for `/etc/resolv.conf`, which does not exist on Android (which uses Netd via UNIX sockets).
+   - Authored an elegant drop-in replacement in `uv/__main__.py` that intercepts all `uv pip` calls from Home Assistant, strips uv-specific arguments, and routes them seamlessly through standard `pip` (which calls Android Bionic libc's `getaddrinfo` directly).
+6. **Flash Storage Longevity (UFS 2.2):**
+   - Configured SQLite `commit_interval: 30` and 3-day purge in `configuration.yaml` to minimize write cycles to the phone's internal UFS flash.
+
+### 4. Verification & Status
+- **Home Assistant Core 2026.11.2** verified running natively on the Redmi Note 10 Pro.
+- HTTP server listening and responding on port `8123` (`http://localhost:8123`).
+- Frontend Lovelace UI extracted and live.
+- Zero-touch automated script created: `scripts/setup-phone-ha.sh`.
+- Comprehensive deployment guide authored: `docs/DEPLOYMENT_GUIDE.md`.
+
+---
+
 ## Log Entry: 2026-11-15 (Entry 27)
 **Author:** Antigravity AI Assistant & Utkarsh  
 **Phase:** World Clock Polish, Time Scrubber Compact Overhaul, Searchable Countries, Local Time Anchor & Widget Sizing Optimizations

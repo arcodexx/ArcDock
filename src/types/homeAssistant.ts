@@ -1,4 +1,4 @@
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'mock' | 'error';
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 export interface HassEntityAttributes {
   friendly_name?: string;

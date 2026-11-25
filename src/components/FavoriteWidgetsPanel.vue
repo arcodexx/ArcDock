@@ -106,10 +106,10 @@ const getStageNumber = (status: string) => {
         <!-- Open All Widgets Drawer -->
         <button
           @click="emit('open-all')"
-          class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white font-bold text-[10px] tracking-wide active:scale-95 transition-all flex items-center gap-1 cursor-pointer shadow-sm"
+          class="min-h-[36px] px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white font-bold text-xs tracking-wide active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
           title="Open Control Center to access all widgets"
         >
-          <SlidersHorizontal class="w-3 h-3 text-sky-400" />
+          <SlidersHorizontal class="w-3.5 h-3.5 text-sky-400" />
           <span>All Widgets</span>
         </button>
 
@@ -117,9 +117,9 @@ const getStageNumber = (status: string) => {
         <button
           @click="emit('collapse')"
           title="Collapse Panel"
-          class="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors border border-white/5 active:scale-95 cursor-pointer"
+          class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors border border-white/5 active:scale-95 cursor-pointer"
         >
-          <ChevronRight class="w-3.5 h-3.5" />
+          <ChevronRight class="w-4 h-4" />
         </button>
       </div>
     </header>
@@ -157,8 +157,7 @@ const getStageNumber = (status: string) => {
           <div class="px-2.5 py-1 border-b border-white/5 flex items-center justify-between bg-black/40">
             <span class="text-[10px] font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
               <span class="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              <span v-if="widgetId === 'climate'">Smart AC Climate</span>
-              <span v-else-if="widgetId === 'lights'">Desk Smart Lights</span>
+              <span v-if="widgetId === 'smartdesk'">Smart Desk IoT</span>
               <span v-else-if="widgetId === 'github'">GitHub Developer Hub</span>
               <span v-else-if="widgetId === 'deliveries'">Domestic Parcel Tracker</span>
               <span v-else-if="widgetId === 'weather'">Desk Weather Station</span>
@@ -172,17 +171,18 @@ const getStageNumber = (status: string) => {
 
             <button
               @click="emit('open-fullscreen', widgetId)"
-              class="p-1 rounded-md text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              class="w-8 h-8 min-w-[32px] min-h-[32px] flex items-center justify-center p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               title="Expand Full Screen"
             >
-              <Maximize2 class="w-3 h-3" />
+              <Maximize2 class="w-3.5 h-3.5" />
             </button>
           </div>
 
           <!-- Widget Card Content -->
           <div class="p-2">
-            <!-- 1. Climate Widget -->
-            <div v-if="widgetId === 'climate'">
+            <!-- 1. Unified Smart Desk IoT Widget (Climate + Scenes + Lights) -->
+            <div v-if="widgetId === 'smartdesk'" class="space-y-2">
+              <!-- Primary AC Climate -->
               <ClimateCard
                 v-if="primaryAc"
                 :entity="primaryAc"
@@ -190,28 +190,22 @@ const getStageNumber = (status: string) => {
                 @set-hvac-mode="(id, m) => ha.setHvacMode(id, m)"
                 @set-fan-mode="(id, f) => ha.setFanMode(id, f)"
               />
-              <div v-else class="text-xs text-neutral-400 py-4 text-center">
-                No AC entity available.
-              </div>
-            </div>
 
-            <!-- 2. Lights Widget -->
-            <div v-else-if="widgetId === 'lights'" class="space-y-2">
               <!-- Quick Scenes Row -->
-              <div class="grid grid-cols-3 gap-1">
+              <div class="grid grid-cols-3 gap-1.5">
                 <button
                   v-for="s in scenesList"
                   :key="s.id"
                   @click="ha.activateScene(s.id)"
-                  class="px-2 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-center gap-1.5 text-[11px] font-bold text-neutral-200 active:scale-95 cursor-pointer transition-all"
+                  class="min-h-[40px] px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-center gap-1.5 text-xs font-bold text-neutral-200 active:scale-95 cursor-pointer transition-all shadow-sm"
                 >
-                  <component :is="s.icon" class="w-3 h-3" :class="s.color" />
+                  <component :is="s.icon" class="w-3.5 h-3.5" :class="s.color" />
                   <span>{{ s.name }}</span>
                 </button>
               </div>
 
               <!-- Primary Lights Grid -->
-              <div class="grid grid-cols-2 gap-1.5">
+              <div v-if="displayedLights.length > 0" class="grid grid-cols-2 gap-1.5">
                 <LightCard
                   v-for="l in displayedLights"
                   :key="l.entity_id"
@@ -219,6 +213,10 @@ const getStageNumber = (status: string) => {
                   @toggle="(id) => ha.toggleLight(id)"
                   @set-brightness="(id, b) => ha.setBrightness(id, b)"
                 />
+              </div>
+
+              <div v-if="!primaryAc && displayedLights.length === 0" class="text-xs text-neutral-500 py-3 text-center">
+                Configure Home Assistant entities in Smart Desk settings.
               </div>
             </div>
 

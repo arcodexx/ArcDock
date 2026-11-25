@@ -28,7 +28,7 @@ const handleToggleFav = () => {
       <div class="flex items-center gap-3 min-w-0">
         <button
           @click="emit('close')"
-          class="p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-300 hover:text-white cursor-pointer shrink-0"
+          class="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-300 hover:text-white cursor-pointer shrink-0"
           title="Back"
         >
           <ArrowLeft class="w-5 h-5" />
@@ -44,7 +44,7 @@ const handleToggleFav = () => {
         <button
           v-if="target"
           @click="handleToggleFav"
-          class="px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+          class="min-h-[40px] px-3.5 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-sm"
           :class="favorites.isFavorite(target)
             ? 'bg-amber-400/20 border-amber-400/50 text-amber-300 shadow-sm'
             : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:bg-white/10'"
@@ -57,7 +57,7 @@ const handleToggleFav = () => {
 
         <button
           @click="emit('close')"
-          class="p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-400 hover:text-white cursor-pointer"
+          class="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-400 hover:text-white cursor-pointer"
           title="Close"
         >
           <X class="w-5 h-5" />

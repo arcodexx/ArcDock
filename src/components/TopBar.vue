@@ -4,6 +4,8 @@ import { useWeatherStore } from '@/stores/weather';
 import { useNetworkStore } from '@/stores/network';
 import { useCalendarStore } from '@/stores/calendar';
 import { usePomodoroStore } from '@/stores/pomodoro';
+import { useGitHubStore } from '@/stores/github';
+import DockPowerModal from '@/components/DockPowerModal.vue';
 import {
   Settings,
   Armchair,
@@ -11,7 +13,8 @@ import {
   CloudSun,
   Lock,
   Delete,
-  Timer
+  Timer,
+  RotateCw
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -29,9 +32,11 @@ const weatherStore = useWeatherStore();
 const networkStore = useNetworkStore();
 const calendarStore = useCalendarStore();
 const pomodoroStore = usePomodoroStore();
+const githubStore = useGitHubStore();
 
 const currentTime = ref('');
 const showConfirmModal = ref(false);
+const showPowerModal = ref(false);
 const showPinModal = ref(false);
 const enteredPin = ref('');
 const pinError = ref(false);
@@ -41,7 +46,12 @@ let lockoutTimer: number | null = null;
 
 const updateClock = () => {
   const now = new Date();
-  currentTime.value = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  currentTime.value = now.toLocaleTimeString('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
 };
 
 let timer: number | null = null;
@@ -65,11 +75,42 @@ const handleTouchEnd = (e: TouchEvent) => {
   }
 };
 
+// Startup Warm-Up Sync: Phones take 5-15s to establish Wi-Fi / DHCP after cold boot
+const startupSyncTimers: number[] = [];
+
+const triggerFullSync = () => {
+  calendarStore.fetchCalendar();
+  if (githubStore.username) {
+    githubStore.fetchData();
+  }
+  weatherStore.fetchWeather();
+};
+
+const handleOnline = () => {
+  triggerFullSync();
+};
+
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible') {
+    triggerFullSync();
+  }
+};
+
 onMounted(() => {
   updateClock();
   weatherStore.startPolling();
   networkStore.startMonitoring();
-  calendarStore.fetchCalendar();
+  calendarStore.startPolling();
+  githubStore.startPolling();
+
+  // Post-boot warm-up retries (5s & 15s) to guarantee data sync once Wi-Fi connects after power-on
+  startupSyncTimers.push(
+    window.setTimeout(() => triggerFullSync(), 5000),
+    window.setTimeout(() => triggerFullSync(), 15000)
+  );
+
+  window.addEventListener('online', handleOnline);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 
   const msToNextMinute = (60 - new Date().getSeconds()) * 1000;
   minuteSyncTimeout = window.setTimeout(() => {
@@ -82,8 +123,13 @@ onUnmounted(() => {
   if (minuteSyncTimeout) window.clearTimeout(minuteSyncTimeout);
   if (timer) window.clearInterval(timer);
   if (lockoutTimer) window.clearInterval(lockoutTimer);
+  startupSyncTimers.forEach((t) => window.clearTimeout(t));
+  window.removeEventListener('online', handleOnline);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
   weatherStore.stopPolling();
   networkStore.stopMonitoring();
+  calendarStore.stopPolling();
+  githubStore.stopPolling();
 });
 
 const startLockout = (seconds: number = 30) => {
@@ -177,7 +223,7 @@ const cancelPinModal = () => {
     <div class="flex items-center gap-2">
       <button
         @click="handleModeClick"
-        class="p-2 rounded-xl border active:scale-90 transition-all cursor-pointer shadow-sm"
+        class="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-xl border active:scale-90 transition-all cursor-pointer shadow-sm"
         :class="[
           mode === 'desk'
             ? 'bg-blue-500/15 hover:bg-blue-500/25 border-blue-400/30 text-blue-400'
@@ -193,7 +239,7 @@ const cancelPinModal = () => {
       <button
         v-if="mode === 'desk'"
         @click="emit('openFullScreen', 'weather')"
-        class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
+        class="hidden sm:flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer"
         title="Open Weather Station"
       >
         <CloudSun class="w-3.5 h-3.5 text-sky-400" />
@@ -204,7 +250,7 @@ const cancelPinModal = () => {
       <button
         v-if="mode === 'desk' && calendarStore.radarEvent"
         @click="emit('openFullScreen', 'calendar')"
-        class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm border"
+        class="flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm border"
         :class="calendarStore.radarEvent.isOngoing
           ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse'
           : 'bg-amber-500/20 text-amber-300 border-amber-500/40'"
@@ -221,7 +267,7 @@ const cancelPinModal = () => {
       <button
         v-if="mode === 'desk' && pomodoroStore.phase !== 'idle'"
         @click="emit('openFullScreen', 'pomodoro')"
-        class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm border"
+        class="flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm border"
         :class="pomodoroStore.phase === 'focus'
           ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
           : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'"
@@ -255,7 +301,7 @@ const cancelPinModal = () => {
       <button
         v-if="mode === 'desk'"
         @click="emit('openFullScreen', 'network')"
-        class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono font-bold transition-all cursor-pointer"
+        class="hidden sm:flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono font-bold transition-all cursor-pointer"
         :class="[
           networkStore.status === 'stable' ? 'text-emerald-400' :
           networkStore.status === 'elevated' ? 'text-amber-400' :
@@ -278,10 +324,20 @@ const cancelPinModal = () => {
       <button
         v-if="mode === 'desk'"
         @click="emit('openSettings')"
-        class="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 active:scale-95 transition-all text-neutral-300 hover:text-white cursor-pointer"
+        class="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 active:scale-95 transition-all text-neutral-300 hover:text-white cursor-pointer"
         title="Settings"
       >
         <Settings class="w-4 h-4" />
+      </button>
+
+      <!-- Dock Power & Restart Button (Desk Mode ONLY) -->
+      <button
+        v-if="mode === 'desk'"
+        @click="showPowerModal = true"
+        class="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 active:scale-95 transition-all text-neutral-300 hover:text-white cursor-pointer"
+        title="Dock Power & Restart"
+      >
+        <RotateCw class="w-4 h-4" />
       </button>
     </div>
 
@@ -400,5 +456,11 @@ const cancelPinModal = () => {
         </div>
       </div>
     </Teleport>
+
+    <!-- Dock Power & Restart Modal -->
+    <DockPowerModal
+      :show="showPowerModal"
+      @close="showPowerModal = false"
+    />
   </header>
 </template>

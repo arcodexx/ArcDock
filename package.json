@@ -14,17 +14,25 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "bash scripts/dock.sh deploy",
+    "dock:reload": "bash scripts/dock.sh reload",
+    "dock:status": "bash scripts/dock.sh status",
+    "dock:restart": "bash scripts/dock.sh restart",
+    "dock:ssh": "bash scripts/dock.sh ssh",
+    "dock:ip": "bash scripts/dock.sh ip"
   },
   "dependencies": {
     "colorthief": "^2.4.0",
     "home-assistant-js-websocket": "^9.8.1",
     "lucide-vue-next": "^0.359.0",
     "pinia": "^2.2.2",
+    "qrcode": "^1.5.4",
     "vue": "^3.4.21"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
+    "@types/qrcode": "^1.5.6",
     "@vitejs/plugin-vue": "^5.0.4",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",

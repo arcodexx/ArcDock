@@ -24,8 +24,6 @@ import {
   CloudLightning,
   Github,
   Package,
-  Snowflake,
-  Lightbulb,
   Wifi,
   ChevronUp,
   ExternalLink,
@@ -35,7 +33,8 @@ import {
   Timer,
   Target,
   Globe,
-  Clipboard
+  Clipboard,
+  Home
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -113,7 +112,7 @@ const getCourierName = (id: string) => {
 
         <button
           @click="emit('close')"
-          class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-400 hover:text-white transition-all active:scale-95 cursor-pointer flex items-center gap-1 text-xs font-semibold"
+          class="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
           title="Dismiss Drawer"
         >
           <span>Dismiss</span>
@@ -156,7 +155,7 @@ const getCourierName = (id: string) => {
             <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('weather')"
-                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
                 :title="favorites.isFavorite('weather') ? 'Unmark Favorite' : 'Mark Favorite (Max 2)'"
               >
                 <Star class="w-4 h-4" :class="favorites.isFavorite('weather') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
@@ -196,7 +195,7 @@ const getCourierName = (id: string) => {
             <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('github')"
-                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
                 :title="favorites.isFavorite('github') ? 'Unmark Favorite' : 'Mark Favorite (Max 2)'"
               >
                 <Star class="w-4 h-4" :class="favorites.isFavorite('github') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
@@ -234,7 +233,7 @@ const getCourierName = (id: string) => {
             <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('deliveries')"
-                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
                 :title="favorites.isFavorite('deliveries') ? 'Unmark Favorite' : 'Mark Favorite (Max 2)'"
               >
                 <Star class="w-4 h-4" :class="favorites.isFavorite('deliveries') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
@@ -257,80 +256,44 @@ const getCourierName = (id: string) => {
           </div>
         </div>
 
-        <!-- 4. SmartThings AC Card -->
+        <!-- 4. Unified Smart Desk IoT Card -->
         <div
-          @click="emit('open-fullscreen', 'climate')"
-          class="p-3.5 rounded-2xl bg-gradient-to-br from-cyan-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
-          :class="favorites.isFavorite('climate') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-cyan-500/20 hover:border-cyan-400/40'"
-        >
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2 min-w-0">
-              <div class="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
-                <Snowflake class="w-4 h-4" />
-              </div>
-              <span class="text-xs font-bold text-white tracking-wide truncate">Climate</span>
-            </div>
-            <div class="flex items-center gap-1.5 shrink-0">
-              <button
-                @click.stop="favorites.toggleFavorite('climate')"
-                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
-                :title="favorites.isFavorite('climate') ? 'Unmark Favorite' : 'Mark Favorite (Max 2)'"
-              >
-                <Star class="w-4 h-4" :class="favorites.isFavorite('climate') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
-              </button>
-              <ExternalLink class="w-3.5 h-3.5 text-neutral-500 group-hover:text-white transition-colors" />
-            </div>
-          </div>
-
-          <div class="mt-2">
-            <div class="flex items-baseline gap-1">
-              <span class="text-2xl font-black text-white font-mono">
-                {{ primaryAc?.attributes.temperature ?? 24 }}°C
-              </span>
-              <span class="text-xs uppercase font-bold text-cyan-300">
-                {{ primaryAc?.state ?? 'Cool' }}
-              </span>
-            </div>
-            <div class="text-[10px] text-neutral-400 font-medium truncate mt-0.5">
-              Room: {{ primaryAc?.attributes.current_temperature ?? 26.5 }}°C
-            </div>
-          </div>
-        </div>
-
-        <!-- 5. Lights & Scenes Card -->
-        <div
-          @click="emit('open-fullscreen', 'lights')"
-          class="p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
-          :class="favorites.isFavorite('lights') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-amber-500/20 hover:border-amber-400/40'"
+          @click="emit('open-fullscreen', 'smartdesk')"
+          class="p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/40 via-neutral-900 to-cyan-950/30 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          :class="favorites.isFavorite('smartdesk') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-amber-500/20 hover:border-amber-400/40'"
         >
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2 min-w-0">
               <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-                <Lightbulb class="w-4 h-4" />
+                <Home class="w-4 h-4" />
               </div>
-              <span class="text-xs font-bold text-white tracking-wide truncate">Smart Lights</span>
+              <span class="text-xs font-bold text-white tracking-wide truncate">Smart Desk IoT</span>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
               <button
-                @click.stop="favorites.toggleFavorite('lights')"
-                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
-                :title="favorites.isFavorite('lights') ? 'Unmark Favorite' : 'Mark Favorite (Max 2)'"
+                @click.stop="favorites.toggleFavorite('smartdesk')"
+                class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
+                :title="favorites.isFavorite('smartdesk') ? 'Unmark Favorite' : 'Mark Favorite (Max 2)'"
               >
-                <Star class="w-4 h-4" :class="favorites.isFavorite('lights') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
+                <Star class="w-4 h-4" :class="favorites.isFavorite('smartdesk') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
               </button>
               <ExternalLink class="w-3.5 h-3.5 text-neutral-500 group-hover:text-white transition-colors" />
             </div>
           </div>
 
           <div class="mt-2">
-            <div class="flex items-baseline gap-1.5">
-              <span class="text-2xl font-black text-white font-mono">
-                {{ activeLightsCount }}
+            <div class="flex items-baseline justify-between">
+              <span v-if="primaryAc" class="text-xl font-black text-white font-mono">
+                {{ primaryAc?.attributes.temperature ?? 24 }}°C
+                <span class="text-[10px] font-bold text-cyan-300 uppercase ml-1">{{ primaryAc?.state ?? 'Cool' }}</span>
               </span>
-              <span class="text-xs text-amber-300 font-bold">Lights Active</span>
+              <span v-else class="text-xs text-neutral-400 font-bold">Smart Desk Active</span>
+              <span class="text-xs text-amber-300 font-bold">
+                {{ activeLightsCount }} Lights Active
+              </span>
             </div>
             <div class="text-[10px] text-neutral-400 font-medium truncate mt-0.5">
-              {{ ha.lights.length }} configured • Tap to view all
+              {{ ha.lights.length }} lights • {{ ha.climates.length }} climate units
             </div>
           </div>
         </div>
@@ -351,7 +314,7 @@ const getCourierName = (id: string) => {
             <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('network')"
-                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
                 :title="favorites.isFavorite('network') ? 'Unmark Favorite' : 'Mark Favorite (Max 2)'"
               >
                 <Star class="w-4 h-4" :class="favorites.isFavorite('network') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
@@ -400,7 +363,7 @@ const getCourierName = (id: string) => {
             <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('calendar')"
-                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
                 :title="favorites.isFavorite('calendar') ? 'Unmark Favorite' : 'Mark Favorite'"
               >
                 <Star class="w-4 h-4" :class="favorites.isFavorite('calendar') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
@@ -437,7 +400,7 @@ const getCourierName = (id: string) => {
             <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('pomodoro')"
-                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
                 :title="favorites.isFavorite('pomodoro') ? 'Unmark Favorite' : 'Mark Favorite'"
               >
                 <Star class="w-4 h-4" :class="favorites.isFavorite('pomodoro') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
@@ -477,7 +440,7 @@ const getCourierName = (id: string) => {
             <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('habits')"
-                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
                 :title="favorites.isFavorite('habits') ? 'Unmark Favorite' : 'Mark Favorite'"
               >
                 <Star class="w-4 h-4" :class="favorites.isFavorite('habits') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
@@ -515,7 +478,7 @@ const getCourierName = (id: string) => {
             <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('timezones')"
-                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
                 :title="favorites.isFavorite('timezones') ? 'Unmark Favorite' : 'Mark Favorite'"
               >
                 <Star class="w-4 h-4" :class="favorites.isFavorite('timezones') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />
@@ -555,7 +518,7 @@ const getCourierName = (id: string) => {
             <div class="flex items-center gap-1.5 shrink-0">
               <button
                 @click.stop="favorites.toggleFavorite('clipboard')"
-                class="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
                 :title="favorites.isFavorite('clipboard') ? 'Unmark Favorite' : 'Mark Favorite'"
               >
                 <Star class="w-4 h-4" :class="favorites.isFavorite('clipboard') ? 'fill-amber-400 text-amber-400' : 'text-neutral-500 hover:text-white'" />

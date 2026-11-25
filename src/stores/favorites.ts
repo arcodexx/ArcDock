@@ -2,8 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
 export type WidgetType =
-  | 'climate'
-  | 'lights'
+  | 'smartdesk'
   | 'github'
   | 'deliveries'
   | 'weather'
@@ -22,16 +21,10 @@ export interface WidgetMeta {
 }
 
 export const WIDGET_CATALOG: Record<WidgetType, WidgetMeta> = {
-  climate: {
-    id: 'climate',
-    title: 'Smart AC Climate',
-    subtitle: 'Setpoint & HVAC modes',
-    category: 'Environment',
-  },
-  lights: {
-    id: 'lights',
-    title: 'Desk Lights & Scenes',
-    subtitle: 'Lighting & ambient presets',
+  smartdesk: {
+    id: 'smartdesk',
+    title: 'Smart Desk IoT',
+    subtitle: 'Climate, lighting & scenes',
     category: 'Environment',
   },
   github: {
@@ -103,11 +96,13 @@ export const useFavoritesStore = defineStore('favorites', () => {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.slice(0, maxFavorites.value) as WidgetType[];
+          const migrated = parsed.map((id: string) => (id === 'climate' || id === 'lights') ? 'smartdesk' : id);
+          const deduped = Array.from(new Set(migrated)) as WidgetType[];
+          return deduped.slice(0, maxFavorites.value);
         }
       }
     } catch {}
-    return ['climate', 'lights'];
+    return ['weather', 'smartdesk'];
   };
 
   const favoriteWidgets = ref<WidgetType[]>(loadFavorites());

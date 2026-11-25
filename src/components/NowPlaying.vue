@@ -79,7 +79,7 @@ const handleProgressBarClick = (event: MouseEvent) => {
           <!-- Spotify Library Button (+ / Check) -->
           <button
             @click="spotify.toggleLikeCurrentTrack"
-            class="w-8 h-8 sm:w-9 sm:h-9 rounded-full active:scale-90 transition-all shrink-0 flex items-center justify-center cursor-pointer"
+            class="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full active:scale-90 transition-all shrink-0 flex items-center justify-center cursor-pointer shadow-sm"
             :class="
               spotify.isCurrentTrackLiked
                 ? 'bg-spotify-green text-black hover:bg-spotify-light shadow-md shadow-spotify-green/20'
@@ -116,30 +116,30 @@ const handleProgressBarClick = (event: MouseEvent) => {
           <!-- Shuffle Button -->
           <button
             @click="spotify.toggleShuffle"
-            class="p-2 sm:p-2.5 rounded-full hover:bg-white/10 active:scale-90 transition-all relative"
+            class="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center p-2 rounded-full hover:bg-white/10 active:scale-90 transition-all relative cursor-pointer"
             :class="spotify.playback?.shuffle_state ? 'text-spotify-green' : 'text-neutral-400'"
             title="Toggle Shuffle"
           >
             <Shuffle class="w-4 h-4 sm:w-5 sm:h-5" />
             <span
               v-if="spotify.playback?.shuffle_state"
-              class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-spotify-green"
+              class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-spotify-green"
             ></span>
           </button>
 
           <!-- Skip Previous -->
           <button
             @click="spotify.previous"
-            class="p-2 sm:p-3 rounded-full text-white hover:bg-white/10 active:scale-90 transition-all"
+            class="w-12 h-12 min-w-[44px] min-h-[44px] flex items-center justify-center p-2 rounded-full text-white hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
             title="Previous Track"
           >
-            <SkipBack class="w-5 h-5 sm:w-7 sm:h-7 fill-current" />
+            <SkipBack class="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
           </button>
 
           <!-- Big Play / Pause Primary Button -->
           <button
             @click="spotify.togglePlay"
-            class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-xl shadow-white/10"
+            class="w-13 h-13 sm:w-16 sm:h-16 min-w-[52px] min-h-[52px] rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-xl shadow-white/10 cursor-pointer"
             title="Play / Pause"
           >
             <Pause v-if="isPlaying" class="w-6 h-6 sm:w-8 sm:h-8 fill-current" />
@@ -149,16 +149,16 @@ const handleProgressBarClick = (event: MouseEvent) => {
           <!-- Skip Next -->
           <button
             @click="spotify.next"
-            class="p-2 sm:p-3 rounded-full text-white hover:bg-white/10 active:scale-90 transition-all"
+            class="w-12 h-12 min-w-[44px] min-h-[44px] flex items-center justify-center p-2 rounded-full text-white hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
             title="Next Track"
           >
-            <SkipForward class="w-5 h-5 sm:w-7 sm:h-7 fill-current" />
+            <SkipForward class="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
           </button>
 
           <!-- Repeat Mode Button -->
           <button
             @click="spotify.cycleRepeat"
-            class="p-2 sm:p-2.5 rounded-full hover:bg-white/10 active:scale-90 transition-all relative"
+            class="w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center p-2 rounded-full hover:bg-white/10 active:scale-90 transition-all relative cursor-pointer"
             :class="spotify.playback?.repeat_state !== 'off' ? 'text-spotify-green' : 'text-neutral-400'"
             title="Repeat Mode"
           >
@@ -166,7 +166,7 @@ const handleProgressBarClick = (event: MouseEvent) => {
             <Repeat v-else class="w-4 h-4 sm:w-5 sm:h-5" />
             <span
               v-if="spotify.playback?.repeat_state !== 'off'"
-              class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-spotify-green"
+              class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-spotify-green"
             ></span>
           </button>
         </div>

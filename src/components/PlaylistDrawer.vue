@@ -122,14 +122,14 @@ onMounted(() => {
           <div class="flex items-center gap-2">
             <button
               @click="handlePlayPlaylistAll(selectedPlaylist.uri)"
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-spotify-green hover:bg-spotify-light text-black text-xs font-bold active:scale-95 transition-all shadow-md"
+              class="flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-xl bg-spotify-green hover:bg-spotify-light text-black text-xs font-bold active:scale-95 transition-all shadow-md cursor-pointer"
               title="Play entire playlist"
             >
-              <Play class="w-3.5 h-3.5 fill-current" /> Play All
+              <Play class="w-4 h-4 fill-current" /> Play All
             </button>
             <button
               @click="emit('close')"
-              class="p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-400 hover:text-white"
+              class="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-400 hover:text-white cursor-pointer"
             >
               <X class="w-5 h-5" />
             </button>
@@ -280,14 +280,14 @@ onMounted(() => {
           <div class="flex items-center gap-2">
             <button
               @click="loadPlaylists"
-              class="p-2 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-400 hover:text-white"
+              class="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-400 hover:text-white cursor-pointer"
               title="Refresh Playlists"
             >
               <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isLoading }" />
             </button>
             <button
               @click="emit('close')"
-              class="p-2 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-400 hover:text-white"
+              class="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-400 hover:text-white cursor-pointer"
               title="Close Drawer"
             >
               <X class="w-5 h-5" />

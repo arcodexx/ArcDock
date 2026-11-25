@@ -39,20 +39,20 @@ onMounted(() => {
       <div class="flex items-center gap-2">
         <button
           @click="calendar.fetchCalendar"
-          class="p-1.5 rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white transition-colors"
+          class="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white transition-colors cursor-pointer shadow-sm active:scale-95"
           title="Refresh calendar"
         >
-          <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': calendar.isLoading }" />
+          <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': calendar.isLoading }" />
         </button>
 
         <button
           @click="showSettingsDrawer = true"
-          class="flex items-center gap-1.5 px-3 py-1 rounded-xl border text-xs font-semibold tracking-wide transition-colors"
+          class="flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-xl border text-xs font-semibold tracking-wide transition-colors cursor-pointer shadow-sm active:scale-95"
           :class="showSettingsDrawer
             ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
             : 'bg-neutral-900 border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700'"
         >
-          <Settings class="w-3.5 h-3.5" />
+          <Settings class="w-4 h-4" />
           <span>Source</span>
         </button>
       </div>
@@ -93,10 +93,10 @@ onMounted(() => {
           <div class="flex items-start gap-3 min-w-0 flex-1">
             <div class="flex flex-col items-center justify-center p-1.5 rounded-xl bg-neutral-950 border border-neutral-800/80 min-w-[70px] text-center">
               <span class="text-xs font-bold font-mono text-white">
-                {{ new Date(event.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+                {{ event.startTimeFormatted }}
               </span>
               <span class="text-[10px] font-mono text-neutral-500">
-                {{ new Date(event.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+                {{ event.endTimeFormatted }}
               </span>
             </div>
 

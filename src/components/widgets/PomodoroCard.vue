@@ -50,23 +50,23 @@ defineEmits<{
     <div class="flex items-center justify-center gap-2 pt-1 border-t border-white/5">
       <button
         @click.stop="pomodoro.togglePlayPause"
-        class="flex items-center gap-1 px-4 py-1.5 rounded-xl font-semibold text-xs transition-colors"
+        class="flex items-center gap-1.5 min-h-[38px] px-4 py-2 rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-sm active:scale-95"
         :class="pomodoro.isRunning
           ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30'
           : 'bg-rose-500 text-black hover:bg-rose-400'"
       >
-        <Pause v-if="pomodoro.isRunning" class="w-3.5 h-3.5" />
-        <Play v-else class="w-3.5 h-3.5 fill-current" />
+        <Pause v-if="pomodoro.isRunning" class="w-4 h-4" />
+        <Play v-else class="w-4 h-4 fill-current" />
         <span>{{ pomodoro.isRunning ? 'Pause' : 'Start' }}</span>
       </button>
 
       <button
         v-if="pomodoro.phase !== 'idle'"
         @click.stop="pomodoro.skipPhase"
-        class="p-1.5 rounded-xl text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+        class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
         title="Skip phase"
       >
-        <SkipForward class="w-3.5 h-3.5" />
+        <SkipForward class="w-4 h-4" />
       </button>
 
       <span class="text-[10px] font-mono text-neutral-500 ml-1">

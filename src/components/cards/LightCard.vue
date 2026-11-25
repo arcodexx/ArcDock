@@ -83,7 +83,7 @@ const setPreset = (percent: number) => {
       <div class="flex items-center justify-between gap-1.5">
         <!-- Glow Icon -->
         <div
-          class="w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0"
+          class="w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0"
           :class="[
             isOn
               ? 'bg-amber-400 text-black shadow-sm'
@@ -93,19 +93,19 @@ const setPreset = (percent: number) => {
           <Lightbulb class="w-4 h-4" />
         </div>
 
-        <!-- Brightness Trigger Button (Icon Only) -->
+        <!-- Brightness Trigger Button (Icon Only - 36px finger touch target) -->
         <button
           v-if="isOn"
           @click.stop="openBrightness"
           title="Adjust Brightness"
-          class="w-7 h-7 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/30 flex items-center justify-center transition-all active:scale-90"
+          class="w-9 h-9 min-w-[36px] min-h-[36px] rounded-xl bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/30 flex items-center justify-center transition-all active:scale-90 cursor-pointer shadow-sm"
         >
-          <SunMedium class="w-3.5 h-3.5" />
+          <SunMedium class="w-4 h-4" />
         </button>
 
         <span
           v-else
-          class="w-2 h-2 rounded-full bg-neutral-700 mr-1"
+          class="w-2.5 h-2.5 rounded-full bg-neutral-700 mr-1"
         />
       </div>
 
@@ -139,9 +139,9 @@ const setPreset = (percent: number) => {
           </div>
           <button
             @click.stop="closeBrightness"
-            class="w-7 h-7 rounded-lg bg-amber-400 text-black flex items-center justify-center font-bold text-xs shadow-md active:scale-90"
+            class="w-9 h-9 min-w-[36px] min-h-[36px] rounded-xl bg-amber-400 text-black flex items-center justify-center font-bold text-xs shadow-md active:scale-90 cursor-pointer"
           >
-            <Check class="w-4 h-4 stroke-[3]" />
+            <Check class="w-5 h-5 stroke-[3]" />
           </button>
         </div>
 
@@ -152,14 +152,14 @@ const setPreset = (percent: number) => {
           @pointermove="onPointerMove"
           @pointerup="onPointerUp"
           @pointercancel="onPointerUp"
-          class="h-11 rounded-xl bg-neutral-800 border border-white/10 relative overflow-hidden cursor-pointer touch-none flex items-center select-none"
+          class="h-12 rounded-xl bg-neutral-800 border border-white/10 relative overflow-hidden cursor-pointer touch-none flex items-center select-none"
         >
           <!-- Active Filled Bar -->
           <div
             class="h-full bg-amber-400 transition-all duration-75 relative flex items-center"
             :style="{ width: `${brightnessPercent}%` }"
           >
-            <div class="absolute right-0 top-0 bottom-0 w-2 bg-white rounded-full shadow-md" />
+            <div class="absolute right-0 top-0 bottom-0 w-2.5 bg-white rounded-full shadow-md" />
           </div>
 
           <div class="absolute inset-0 px-3 flex items-center justify-between text-xs font-semibold pointer-events-none text-neutral-300">
@@ -171,13 +171,13 @@ const setPreset = (percent: number) => {
           </div>
         </div>
 
-        <!-- Quick One-Tap Preset Chips -->
+        <!-- Quick One-Tap Preset Chips (Finger friendly min 40px) -->
         <div class="grid grid-cols-4 gap-1.5">
           <button
             v-for="p in [25, 50, 75, 100]"
             :key="p"
             @click.stop="setPreset(p)"
-            class="py-1.5 rounded-lg text-xs font-bold border transition-all active:scale-90"
+            class="min-h-[40px] py-2 rounded-xl text-xs font-bold border transition-all active:scale-90 cursor-pointer shadow-sm flex items-center justify-center"
             :class="
               brightnessPercent === p
                 ? 'bg-amber-400 text-black border-amber-400 font-extrabold shadow-sm'

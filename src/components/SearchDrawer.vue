@@ -102,7 +102,7 @@ onMounted(() => {
           </div>
           <button
             @click="emit('close')"
-            class="p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-400 hover:text-white"
+            class="w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 transition-all text-neutral-400 hover:text-white cursor-pointer"
             title="Close Search"
           >
             <X class="w-5 h-5" />

@@ -143,14 +143,14 @@ const onPointerUp = (e: PointerEvent) => {
       <slot name="right" :collapse="collapse" />
     </div>
 
-    <!-- Discreet Floating Expand Tab when collapsed (Desk Mode only) -->
+    <!-- Discreet Floating Expand Tab when collapsed (Desk Mode only - Thumb-friendly 28x56 target) -->
     <button
       v-if="!disabled && isCollapsed"
       @click="expand"
       title="Expand Desk Controls"
-      class="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-5 h-12 rounded-l-xl bg-neutral-900 border-l border-y border-white/20 hover:border-amber-400/60 text-neutral-400 hover:text-amber-400 shadow-xl flex items-center justify-center transition-all active:scale-90 cursor-pointer"
+      class="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-7 h-14 rounded-l-2xl bg-neutral-900 border-l border-y border-white/20 hover:border-amber-400/60 text-neutral-400 hover:text-amber-400 shadow-xl flex items-center justify-center transition-all active:scale-90 cursor-pointer"
     >
-      <ChevronLeft class="w-3.5 h-3.5" />
+      <ChevronLeft class="w-4 h-4" />
     </button>
   </div>
 </template>

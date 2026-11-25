@@ -32,7 +32,7 @@ const isFan = computed(() => {
     <!-- Top Row: Icon + State Dot -->
     <div class="flex items-center justify-between gap-1.5">
       <div
-        class="w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0"
+        class="w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0"
         :class="[
           isOn
             ? 'bg-emerald-400 text-black shadow-sm'
@@ -47,7 +47,7 @@ const isFan = computed(() => {
       </div>
 
       <span
-        class="w-2 h-2 rounded-full mr-1 transition-colors"
+        class="w-2.5 h-2.5 rounded-full mr-1 transition-colors"
         :class="isOn ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-neutral-700'"
       />
     </div>

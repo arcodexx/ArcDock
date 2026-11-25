@@ -22,8 +22,6 @@ import FullScreenView from '@/components/FullScreenView.vue';
 import WeatherView from '@/components/views/WeatherView.vue';
 import GitHubView from '@/components/views/GitHubView.vue';
 import DeliveryView from '@/components/views/DeliveryView.vue';
-import ClimateView from '@/components/views/ClimateView.vue';
-import LightsView from '@/components/views/LightsView.vue';
 import NetworkView from '@/components/views/NetworkView.vue';
 import CalendarView from '@/components/views/CalendarView.vue';
 import PomodoroView from '@/components/views/PomodoroView.vue';
@@ -62,8 +60,7 @@ type FullScreenTarget =
   | 'weather'
   | 'github'
   | 'deliveries'
-  | 'climate'
-  | 'lights'
+  | 'smartdesk'
   | 'network'
   | 'calendar'
   | 'pomodoro'
@@ -293,8 +290,7 @@ onUnmounted(() => {
       <WeatherView v-if="activeFullScreen === 'weather'" />
       <GitHubView v-if="activeFullScreen === 'github'" />
       <DeliveryView v-if="activeFullScreen === 'deliveries'" />
-      <ClimateView v-if="activeFullScreen === 'climate'" />
-      <LightsView v-if="activeFullScreen === 'lights'" />
+      <DeskIoTPanel v-if="activeFullScreen === 'smartdesk'" @collapse="closeFullScreen" class="border-none" />
       <NetworkView v-if="activeFullScreen === 'network'" />
       <CalendarView v-if="activeFullScreen === 'calendar'" />
       <PomodoroView v-if="activeFullScreen === 'pomodoro'" />

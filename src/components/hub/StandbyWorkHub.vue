@@ -85,13 +85,13 @@ const handleResume = () => {
             </span>
             <button
               @click.stop="pomodoro.togglePlayPause"
-              class="p-1.5 rounded-lg border text-xs font-bold transition-all active:scale-95 cursor-pointer"
+              class="w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl border text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-sm"
               :class="pomodoro.isRunning
                 ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                 : 'bg-rose-500/20 text-rose-300 border-rose-500/40'"
             >
-              <Pause v-if="pomodoro.isRunning" class="w-3.5 h-3.5" />
-              <Play v-else class="w-3.5 h-3.5 fill-current" />
+              <Pause v-if="pomodoro.isRunning" class="w-4 h-4" />
+              <Play v-else class="w-4 h-4 fill-current" />
             </button>
           </div>
         </div>
@@ -191,10 +191,10 @@ const handleResume = () => {
               <button
                 @click.stop="delivery.refreshSingleParcel(parcel.id)"
                 :disabled="parcel.isLoading"
-                class="p-1 rounded-lg bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                class="w-8 h-8 min-w-[32px] min-h-[32px] rounded-lg bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center active:scale-90"
                 :title="parcel.isLoading ? 'Connecting to courier...' : 'Sync tracking status'"
               >
-                <RefreshCw class="w-3 h-3 text-amber-400" :class="{ 'animate-spin': parcel.isLoading }" />
+                <RefreshCw class="w-3.5 h-3.5 text-amber-400" :class="{ 'animate-spin': parcel.isLoading }" />
               </button>
             </div>
           </div>
@@ -232,18 +232,18 @@ const handleResume = () => {
       <button
         v-if="spotify.isAuthenticated"
         @click="handleResume"
-        class="py-2 px-4 rounded-xl bg-spotify-green hover:bg-spotify-light text-black font-extrabold text-xs tracking-wide active:scale-95 transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-spotify-green/20"
+        class="min-h-[44px] py-2.5 px-5 rounded-2xl bg-spotify-green hover:bg-spotify-light text-black font-extrabold text-xs tracking-wide active:scale-95 transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-spotify-green/20"
       >
-        <Play class="w-3.5 h-3.5 fill-current" />
-        <span class="truncate max-w-[160px]">Resume: {{ lastTrackTitle }}</span>
+        <Play class="w-4 h-4 fill-current" />
+        <span class="truncate max-w-[170px]">Resume: {{ lastTrackTitle }}</span>
       </button>
 
       <button
         v-else
         @click="emit('openSettings')"
-        class="py-2 px-4 rounded-xl bg-spotify-green hover:bg-spotify-light text-black font-extrabold text-xs tracking-wide active:scale-95 transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-spotify-green/20"
+        class="min-h-[44px] py-2.5 px-5 rounded-2xl bg-spotify-green hover:bg-spotify-light text-black font-extrabold text-xs tracking-wide active:scale-95 transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-spotify-green/20"
       >
-        <Radio class="w-3.5 h-3.5" />
+        <Radio class="w-4 h-4" />
         <span>Connect Spotify</span>
       </button>
     </div>

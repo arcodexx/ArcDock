@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useClipboardStore } from '@/stores/clipboard';
-import { Clipboard, Copy, Check, Send, RefreshCw, Laptop, Smartphone, Monitor } from 'lucide-vue-next';
+import { useDeviceInfoStore } from '@/stores/deviceInfo';
+import QRCodeModal from '@/components/common/QRCodeModal.vue';
+import { Clipboard, Copy, Check, Send, RefreshCw, Laptop, Smartphone, Monitor, QrCode } from 'lucide-vue-next';
 
 defineEmits<{
   (e: 'close'): void;
 }>();
 
 const clipboard = useClipboardStore();
+const deviceInfo = useDeviceInfoStore();
 
 const newClipText = ref('');
 const copiedId = ref<string | null>(null);
+const showQrModal = ref(false);
 
 const handleCopyText = async (id: string, text: string) => {
   const ok = await clipboard.copyToClipboard(text);
@@ -30,6 +34,7 @@ const handleSendFromArcDock = async () => {
 
 onMounted(() => {
   clipboard.startPolling();
+  deviceInfo.fetchDeviceInfo();
 });
 
 onUnmounted(() => {
@@ -74,9 +79,18 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="flex items-center gap-2 text-xs font-mono bg-neutral-950 px-3 py-1.5 rounded-xl border border-neutral-800 text-neutral-300">
-          <span>LAN URL:</span>
-          <span class="text-violet-400 font-semibold">:3000/clip</span>
+        <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 text-xs font-mono bg-neutral-950 px-3 py-1.5 rounded-xl border border-neutral-800 text-neutral-300">
+            <span class="text-neutral-500">URL:</span>
+            <span class="text-violet-400 font-semibold">{{ deviceInfo.ip }}:3000/clip</span>
+          </div>
+          <button
+            @click="showQrModal = true"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 text-violet-300 border border-violet-500/30 text-xs font-semibold tracking-wide transition-all active:scale-95 cursor-pointer"
+          >
+            <QrCode class="w-3.5 h-3.5" />
+            <span>Scan QR</span>
+          </button>
         </div>
       </div>
 
@@ -175,5 +189,15 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- QR Code Scan Modal -->
+    <QRCodeModal
+      :show="showQrModal"
+      title="LAN Clipboard"
+      subtitle="Scan with your phone or laptop camera to copy & paste instantly"
+      :url="deviceInfo.clipUrl"
+      :badge="deviceInfo.ip + ':3000/clip'"
+      @close="showQrModal = false"
+    />
   </div>
 </template>

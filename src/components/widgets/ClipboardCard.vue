@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useClipboardStore } from '@/stores/clipboard';
-import { Clipboard, Copy, Check, Laptop } from 'lucide-vue-next';
+import { useDeviceInfoStore } from '@/stores/deviceInfo';
+import QRCodeModal from '@/components/common/QRCodeModal.vue';
+import { Clipboard, Copy, Check, Laptop, QrCode } from 'lucide-vue-next';
 
 const clipboard = useClipboardStore();
+const deviceInfo = useDeviceInfoStore();
 
 defineEmits<{
   (e: 'expand'): void;
 }>();
 
 const copied = ref(false);
+const showQrModal = ref(false);
 
 const handleCopy = async () => {
   if (!clipboard.current?.text) return;
@@ -24,6 +28,7 @@ const handleCopy = async () => {
 
 onMounted(() => {
   clipboard.startPolling();
+  deviceInfo.fetchDeviceInfo();
 });
 
 onUnmounted(() => {
@@ -42,7 +47,16 @@ onUnmounted(() => {
         <Clipboard class="w-3.5 h-3.5 text-violet-400 shrink-0" />
         <span class="font-bold text-white uppercase tracking-wider">LAN Clipboard</span>
       </div>
-      <span class="text-[10px] text-violet-400 font-mono">/clip</span>
+
+      <!-- Quick QR Code Trigger Button -->
+      <button
+        @click.stop="showQrModal = true"
+        class="flex items-center gap-1.5 min-h-[30px] px-2.5 py-1 rounded-lg bg-violet-500/15 hover:bg-violet-500/25 text-violet-300 border border-violet-500/30 text-xs font-mono transition-all active:scale-95 cursor-pointer shadow-sm"
+        title="Show QR Code & LAN Link"
+      >
+        <QrCode class="w-3.5 h-3.5 text-violet-400" />
+        <span>/clip</span>
+      </button>
     </div>
 
     <!-- Center Display -->
@@ -69,22 +83,40 @@ onUnmounted(() => {
 
     <!-- Action Footer -->
     <div class="flex items-center justify-between pt-1 border-t border-neutral-800/40">
-      <span class="text-[10px] font-mono text-neutral-500">
-        {{ clipboard.history.length }} {{ clipboard.history.length === 1 ? 'clip' : 'clips' }} stored
-      </span>
+      <div class="flex items-center gap-1.5">
+        <span class="text-[10px] font-mono text-neutral-500">
+          {{ clipboard.history.length }} {{ clipboard.history.length === 1 ? 'clip' : 'clips' }}
+        </span>
+        <button
+          @click.stop="showQrModal = true"
+          class="text-[10px] font-mono text-violet-400/80 hover:text-violet-300 underline underline-offset-2 transition-colors cursor-pointer"
+        >
+          Scan QR
+        </button>
+      </div>
 
       <button
         @click.stop="handleCopy"
         :disabled="!clipboard.current"
-        class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors disabled:opacity-40"
+        class="flex items-center gap-1.5 min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 cursor-pointer disabled:opacity-40 shadow-sm"
         :class="copied
           ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
           : 'bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30'"
       >
-        <Check v-if="copied" class="w-3 h-3" />
-        <Copy v-else class="w-3 h-3" />
+        <Check v-if="copied" class="w-3.5 h-3.5" />
+        <Copy v-else class="w-3.5 h-3.5" />
         <span>{{ copied ? 'Copied' : 'Copy' }}</span>
       </button>
     </div>
+
+    <!-- QR Code Scan Modal -->
+    <QRCodeModal
+      :show="showQrModal"
+      title="LAN Clipboard"
+      subtitle="Scan with your phone or laptop camera to copy & paste instantly"
+      :url="deviceInfo.clipUrl"
+      :badge="deviceInfo.ip + ':3000/clip'"
+      @close="showQrModal = false"
+    />
   </div>
 </template>

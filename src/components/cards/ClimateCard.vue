@@ -191,14 +191,14 @@ onUnmounted(() => {
 
     <!-- Center: Temperature Target Adjustment Stepper -->
     <div class="flex items-center justify-between py-1 px-1">
-      <!-- Minus Button -->
+      <!-- Minus Button (Finger friendly 44px hit area) -->
       <button
         @click.stop="handleTempChange(-0.5)"
         :disabled="isOff || targetTemp <= minTemp"
-        class="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 active:scale-95 transition-all flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
+        class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 active:scale-95 transition-all flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:pointer-events-none shadow-sm"
         title="Decrease Temperature"
       >
-        <Minus class="w-4 h-4 text-white" />
+        <Minus class="w-5 h-5 text-white" />
       </button>
 
       <!-- Target Temperature Display -->
@@ -211,23 +211,23 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Plus Button -->
+      <!-- Plus Button (Finger friendly 44px hit area) -->
       <button
         @click.stop="handleTempChange(0.5)"
         :disabled="isOff || targetTemp >= maxTemp"
-        class="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 active:scale-95 transition-all flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
+        class="w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 active:scale-95 transition-all flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:pointer-events-none shadow-sm"
         title="Increase Temperature"
       >
-        <Plus class="w-4 h-4 text-white" />
+        <Plus class="w-5 h-5 text-white" />
       </button>
     </div>
 
     <!-- Bottom Controls: Power Toggle + Mode Dropdown + Fan Dropdown -->
-    <div class="pt-1.5 border-t border-white/5 flex items-center gap-1.5 relative">
+    <div class="pt-2 border-t border-white/5 flex items-center gap-2 relative">
       <!-- Power Button -->
       <button
         @click.stop="togglePower"
-        class="p-2 rounded-xl border transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
+        class="w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl border transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 shadow-sm"
         :class="[
           !isOff
             ? 'bg-rose-500/20 border-rose-500/40 text-rose-300 hover:bg-rose-500/30'
@@ -235,14 +235,14 @@ onUnmounted(() => {
         ]"
         :title="isOff ? 'Turn AC On' : 'Turn AC Off'"
       >
-        <Power class="w-3.5 h-3.5" />
+        <Power class="w-4 h-4" />
       </button>
 
       <!-- Mode Dropdown Trigger Button -->
       <div class="relative flex-1">
         <button
           @click.stop="toggleModeMenu"
-          class="w-full py-1.5 px-2.5 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all active:scale-98 cursor-pointer"
+          class="w-full min-h-[40px] py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all active:scale-98 cursor-pointer shadow-sm"
           :class="[
             isModeMenuOpen
               ? 'bg-white/20 border-white/40 text-white'
@@ -250,10 +250,10 @@ onUnmounted(() => {
           ]"
         >
           <div class="flex items-center gap-1.5 truncate">
-            <component :is="getHvacIcon(currentHvacMode)" class="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <component :is="getHvacIcon(currentHvacMode)" class="w-4 h-4 text-cyan-400 shrink-0" />
             <span class="truncate">{{ getHvacLabel(currentHvacMode) }}</span>
           </div>
-          <ChevronDown class="w-3 h-3 text-neutral-400 transition-transform shrink-0" :class="{ 'rotate-180': isModeMenuOpen }" />
+          <ChevronDown class="w-3.5 h-3.5 text-neutral-400 transition-transform shrink-0" :class="{ 'rotate-180': isModeMenuOpen }" />
         </button>
 
         <!-- Mode Dropdown Popover Menu (Opens downwards) -->
@@ -266,15 +266,15 @@ onUnmounted(() => {
             v-for="m in hvacModesList"
             :key="m"
             @click.stop="selectHvacMode(m)"
-            class="w-full px-2 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between text-left transition-colors cursor-pointer"
+            class="w-full min-h-[38px] px-2.5 py-2 rounded-lg text-xs font-medium flex items-center justify-between text-left transition-colors cursor-pointer"
             :class="[
               currentHvacMode === m
                 ? 'bg-cyan-500/20 text-cyan-300 font-bold'
                 : 'text-neutral-300 hover:bg-white/10 hover:text-white'
             ]"
           >
-            <div class="flex items-center gap-1.5">
-              <component :is="getHvacIcon(m)" class="w-3.5 h-3.5" />
+            <div class="flex items-center gap-2">
+              <component :is="getHvacIcon(m)" class="w-4 h-4" />
               <span>{{ getHvacLabel(m) }}</span>
             </div>
             <Check v-if="currentHvacMode === m" class="w-3.5 h-3.5 text-cyan-400" />
@@ -286,7 +286,7 @@ onUnmounted(() => {
       <div v-if="!isOff && fanModesList.length > 1" class="relative flex-1">
         <button
           @click.stop="toggleFanMenu"
-          class="w-full py-1.5 px-2.5 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all active:scale-98 cursor-pointer"
+          class="w-full min-h-[40px] py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-between transition-all active:scale-98 cursor-pointer shadow-sm"
           :class="[
             isFanMenuOpen
               ? 'bg-white/20 border-white/40 text-white'
@@ -294,10 +294,10 @@ onUnmounted(() => {
           ]"
         >
           <div class="flex items-center gap-1.5 truncate">
-            <Wind class="w-3.5 h-3.5 text-sky-400 shrink-0" />
+            <Wind class="w-4 h-4 text-sky-400 shrink-0" />
             <span class="truncate capitalize">{{ currentFanMode }}</span>
           </div>
-          <ChevronDown class="w-3 h-3 text-neutral-400 transition-transform shrink-0" :class="{ 'rotate-180': isFanMenuOpen }" />
+          <ChevronDown class="w-3.5 h-3.5 text-neutral-400 transition-transform shrink-0" :class="{ 'rotate-180': isFanMenuOpen }" />
         </button>
 
         <!-- Fan Speed Dropdown Popover Menu (Opens downwards) -->
@@ -310,7 +310,7 @@ onUnmounted(() => {
             v-for="f in fanModesList"
             :key="f"
             @click.stop="selectFanMode(f)"
-            class="w-full px-2 py-1.5 rounded-lg text-xs font-medium flex items-center justify-between text-left transition-colors cursor-pointer capitalize"
+            class="w-full min-h-[38px] px-2.5 py-2 rounded-lg text-xs font-medium flex items-center justify-between text-left transition-colors cursor-pointer capitalize"
             :class="[
               currentFanMode === f
                 ? 'bg-sky-500/20 text-sky-300 font-bold'

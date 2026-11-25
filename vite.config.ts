@@ -2,12 +2,25 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 import fs from 'fs'
+import os from 'os'
 
 // In-memory LAN clipboard store
 const sharedClipboard = {
   current: null as { id: string; text: string; device: string; timestamp: string } | null,
   history: [] as { id: string; text: string; device: string; timestamp: string }[],
 };
+
+function getLocalIp(): string {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
 
 function setupBridgeMiddleware(middlewares: any) {
   middlewares.use(async (req: any, res: any, next: any) => {
@@ -31,6 +44,31 @@ function setupBridgeMiddleware(middlewares: any) {
         res.end(fs.readFileSync(clipHtmlPath));
         return;
       }
+    }
+
+    // System restart endpoint mock
+    if (req.url === '/api/system/restart-server' && req.method === 'POST') {
+      res.setHeader('Content-Type', 'application/json');
+      res.statusCode = 200;
+      res.end(JSON.stringify({ status: 'restarting' }));
+      return;
+    }
+
+    // Direct /api/info device & LAN network info
+    if (req.url === '/api/info') {
+      const ip = getLocalIp();
+      res.setHeader('Content-Type', 'application/json');
+      res.statusCode = 200;
+      res.end(
+        JSON.stringify({
+          ip,
+          port: 3000,
+          ha_port: 8123,
+          ha_url: `http://${ip}:8123`,
+          clip_url: `http://${ip}:3000/clip`,
+        })
+      );
+      return;
     }
 
     // Shared Clipboard API

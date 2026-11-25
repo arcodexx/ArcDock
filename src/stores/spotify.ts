@@ -148,8 +148,8 @@ export const useSpotifyStore = defineStore('spotify', () => {
       const exchangedTokens = await exchangeCodeForTokens(code, clientId.value, redirectUri.value);
       saveTokens(exchangedTokens);
 
-      // Clean up URL parameters without full page reload
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Clean up URL parameters and return to root dashboard path without full page reload
+      window.history.replaceState({}, document.title, '/');
       await fetchPlayback();
       startPolling();
       return true;

@@ -421,8 +421,35 @@ export const useGitHubStore = defineStore('github', () => {
     } catch (err: any) {
       console.warn('[GitHub] Global fetch error:', err);
       error.value = 'Failed to load GitHub data.';
+      // If boot occurred before network ready, retry in 10s
+      if (todayCommits.value === 0 && streakDays.value === 0 && username.value) {
+        window.setTimeout(() => fetchData(), 10_000);
+      }
     } finally {
       isLoading.value = false;
+    }
+  };
+
+  // Automated Background Polling (Every 1 Hour)
+  const POLL_INTERVAL_MS = 60 * 60 * 1000;
+  let pollTimer: number | null = null;
+
+  const startPolling = () => {
+    if (pollTimer) return;
+    if (username.value) {
+      fetchData();
+    }
+    pollTimer = window.setInterval(() => {
+      if (username.value) {
+        fetchData();
+      }
+    }, POLL_INTERVAL_MS);
+  };
+
+  const stopPolling = () => {
+    if (pollTimer) {
+      window.clearInterval(pollTimer);
+      pollTimer = null;
     }
   };
 
@@ -445,5 +472,7 @@ export const useGitHubStore = defineStore('github', () => {
     error,
     saveCredentials,
     fetchData,
+    startPolling,
+    stopPolling,
   };
 });
