@@ -118,21 +118,22 @@ const handleWake = (e: Event) => {
 </script>
 
 <template>
-  <div
-    @pointerdown.stop.prevent="handleWake"
-    @click.stop.prevent="handleWake"
-    class="oled-screensaver fixed inset-0 z-[100] bg-black text-white flex flex-col items-center justify-between p-6 sm:p-10 cursor-pointer select-none overflow-hidden transition-opacity duration-700"
-    style="background-color: #000000 !important; color: #FFFFFF !important;"
-  >
-    <!-- Top hint & Theme Switcher -->
-    <!-- Top Status: Subtle Ambient Indicator -->
-    <div class="w-full flex items-center justify-between text-xs font-mono tracking-widest text-neutral-600">
-      <div class="flex items-center gap-2">
-        <Moon class="w-3.5 h-3.5 text-neutral-600" />
-        <span class="hidden sm:inline uppercase">AMOLED Standby • Tap anywhere to wake</span>
-        <span class="sm:hidden uppercase">Standby</span>
+  <Teleport to="body">
+    <div
+      @pointerdown.stop.prevent="handleWake"
+      @click.stop.prevent="handleWake"
+      class="oled-screensaver fixed z-[99999] bg-black text-white flex flex-col items-center justify-between p-6 sm:p-10 cursor-pointer select-none overflow-hidden transition-opacity duration-700"
+      style="position: fixed; inset: -6px; width: calc(100vw + 12px); height: calc(100vh + 12px); background-color: #000000 !important; color: #FFFFFF !important; border: none !important;"
+    >
+      <!-- Top hint & Theme Switcher -->
+      <!-- Top Status: Subtle Ambient Indicator -->
+      <div class="w-full flex items-center justify-between text-xs font-mono tracking-widest text-neutral-600">
+        <div class="flex items-center gap-2">
+          <Moon class="w-3.5 h-3.5 text-neutral-600" />
+          <span class="hidden sm:inline uppercase">AMOLED Standby • Tap anywhere to wake</span>
+          <span class="sm:hidden uppercase">Standby</span>
+        </div>
       </div>
-    </div>
 
     <!-- Center Display Area -->
     <div class="flex flex-col items-center text-center space-y-4 max-w-2xl px-4">
@@ -237,4 +238,5 @@ const handleWake = (e: Event) => {
       ArcDock Standby — True-Black Pixel Extinction Active
     </div>
   </div>
+  </Teleport>
 </template>

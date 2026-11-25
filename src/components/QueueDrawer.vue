@@ -33,9 +33,21 @@ const loadQueue = async () => {
   }
 };
 
-const handleJumpToTrack = async (track: SpotifyTrack) => {
-  await spotify.playTrack(track.uri);
-  setTimeout(loadQueue, 1000);
+const isJumpingTrackId = ref<string | null>(null);
+
+const handleJumpToTrack = async (track: SpotifyTrack, index: number) => {
+  if (isJumpingTrackId.value) return;
+  isJumpingTrackId.value = track.uri || track.id;
+  try {
+    await spotify.jumpToQueueTrack(track, index);
+  } catch (err: any) {
+    console.warn('[Queue] Jump error:', err);
+  } finally {
+    setTimeout(async () => {
+      await loadQueue();
+      isJumpingTrackId.value = null;
+    }, 600);
+  }
 };
 
 onMounted(() => {
@@ -163,11 +175,13 @@ onMounted(() => {
 
             <!-- Jump to track button -->
             <button
-              @click="handleJumpToTrack(track)"
-              class="p-2 rounded-lg bg-white/5 hover:bg-spotify-green hover:text-black text-neutral-300 active:scale-95 transition-all"
-              title="Jump to this track"
+              @click="handleJumpToTrack(track, index)"
+              :disabled="isJumpingTrackId !== null"
+              class="p-2 rounded-lg bg-white/5 hover:bg-spotify-green hover:text-black text-neutral-300 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              :title="isJumpingTrackId === (track.uri || track.id) ? 'Moving to track...' : 'Jump to this track'"
             >
-              <Play class="w-4 h-4 fill-current" />
+              <RefreshCw v-if="isJumpingTrackId === (track.uri || track.id)" class="w-4 h-4 animate-spin text-spotify-green" />
+              <Play v-else class="w-4 h-4 fill-current" />
             </button>
           </div>
         </div>

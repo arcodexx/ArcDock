@@ -75,12 +75,53 @@ const activeFullScreen = ref<FullScreenTarget>(null);
 
 const { isSleeping, wakeUp, pixelShift } = useAmoledProtection(() => !spotify.isPlaying);
 
-// ANTI-02: Suspend 10s network ping and 1s progress ticker during deep OLED sleep
+// Zero pixelShift during screensaver so no underlying edges or theme backdrops can leak through
+const activePixelShift = computed(() => {
+  if (isSleeping.value || screensaverStore.isPreviewing) {
+    return { x: 0, y: 0 };
+  }
+  return pixelShift.value;
+});
+
+// Thermal & Display Power Optimization: Dim display in Fully Kiosk & restore on wake
+let savedScreenBrightness = -1;
+
+const dimScreenForSleep = () => {
+  try {
+    const fully = (window as any).fully;
+    if (fully?.getScreenBrightness && fully?.setScreenBrightness) {
+      const current = fully.getScreenBrightness();
+      if (current > 15) {
+        savedScreenBrightness = current;
+      }
+      // Drop to ultra-low brightness (e.g. 5 out of 255) to drastically cool down OLED panel & battery
+      fully.setScreenBrightness(5);
+    }
+  } catch {}
+};
+
+const restoreScreenBrightness = () => {
+  try {
+    const fully = (window as any).fully;
+    if (savedScreenBrightness > 0 && fully?.setScreenBrightness) {
+      fully.setScreenBrightness(savedScreenBrightness);
+      savedScreenBrightness = -1;
+    }
+  } catch {}
+};
+
+// ANTI-02: Suspend 10s network ping, 1s progress ticker, and dim screen during deep OLED sleep
 watch(isSleeping, (sleeping) => {
   if (sleeping) {
+    document.documentElement.style.backgroundColor = '#000000';
+    document.body.style.backgroundColor = '#000000';
     networkStore.stopMonitoring();
     spotify.stopPolling();
+    dimScreenForSleep();
   } else {
+    document.documentElement.style.backgroundColor = '';
+    document.body.style.backgroundColor = '';
+    restoreScreenBrightness();
     networkStore.startMonitoring();
     if (spotify.isAuthenticated) {
       spotify.startPolling();
@@ -142,6 +183,7 @@ const isWakingShieldActive = ref(false);
 
 const handleScreensaverWake = () => {
   screensaverStore.closePreview();
+  restoreScreenBrightness();
   wakeUp();
   // Swallow trailing touch/click events for 350ms to prevent ghost clicks on underlying dock buttons
   isWakingShieldActive.value = true;
@@ -213,11 +255,11 @@ onUnmounted(() => {
     :data-theme="themeStore.currentTheme"
     :style="{
       ...backgroundGradientStyle,
-      transform: `translate3d(${pixelShift.x}px, ${pixelShift.y}px, 0)`,
+      transform: `translate3d(${activePixelShift.x}px, ${activePixelShift.y}px, 0)`,
     }"
   >
-    <!-- Ambient Themed Backdrop Layer -->
-    <ThemeBackdrop />
+    <!-- Ambient Themed Backdrop Layer (Unmounted during screensaver to halt 100% of GPU animations & heat) -->
+    <ThemeBackdrop v-if="!isSleeping && !screensaverStore.isPreviewing" />
 
     <!-- Top System Bar: Operational Mode + Grab Handle for Control Center + Settings -->
     <TopBar

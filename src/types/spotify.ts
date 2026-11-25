@@ -47,6 +47,13 @@ export interface SpotifyDevice {
   volume_percent: number | null;
 }
 
+export interface SpotifyContext {
+  type: 'playlist' | 'album' | 'artist' | 'show' | string;
+  href: string;
+  uri: string;
+  external_urls?: Record<string, string>;
+}
+
 export interface SpotifyPlaybackState {
   device: SpotifyDevice;
   repeat_state: 'off' | 'track' | 'context';
@@ -56,6 +63,7 @@ export interface SpotifyPlaybackState {
   is_playing: boolean;
   item: SpotifyTrack | null;
   currently_playing_type: 'track' | 'episode' | 'ad' | 'unknown';
+  context?: SpotifyContext | null;
 }
 
 export interface SpotifyPlaylist {

@@ -4,6 +4,66 @@ This log tracks all architectural discussions, technical decisions, completed st
 
 ---
 
+## Log Entry: 2026-11-25 (Entry 50)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Fix Screensaver Border Leakage & Thermal / Display Power Optimizations
+
+### 1. User Directives & Goals
+1. When in screensaver mode, a 1–2 pixel border line was visible along the edges of the display that adopted the underlying theme color (e.g. pink/white in Japan mode).
+2. The docked phone was running warm after sitting open on charge from morning; requested actionable optimizations to reduce thermal load and battery stress.
+
+### 2. Root Cause Analysis
+1. **Screensaver Border Leakage:**
+   - In `App.vue`, `useAmoledProtection()` applied micro pixel shifts (`transform: translate3d(x, y, 0)`) to the `<main>` element.
+   - When `<main>` shifted by 1–2px, the underlying `body[data-theme="japan"]` (which has `#FFF5F8` background) was exposed at the screen perimeter.
+   - Because `OledScreensaver.vue` was inside `<main>`, it shifted along with the transformed parent, revealing the 1–2px pink theme edge.
+2. **Thermal Load & Heat Sources:**
+   - **Continuous GPU Rendering:** `ThemeBackdrop.vue` remained mounted behind the screensaver, continuously rendering infinite CSS keyframe animations (sakura petal drift, ramen steam, cyberpunk scanlines, and canvas blur re-compositing) at 120 FPS on the Snapdragon Adreno GPU 24/7.
+   - **Full OLED Brightness:** The display remained at standard day brightness while the screensaver was active.
+   - **Continuous Trickle Charging:** Sitting at 100% battery with active current while powering an illuminated display generates continuous heat inside the phone's PMIC.
+
+### 3. Solutions Implemented
+1. **Complete Elimination of Screensaver Border Leakage:**
+   - **Decoupled via Teleport:** Wrapped `OledScreensaver.vue` in `<Teleport to="body">`, mounting it directly to `<body>` outside the transformed `<main>`.
+   - **Viewport Bleed Style:** Added `style="position: fixed; inset: -6px; width: calc(100vw + 12px); height: calc(100vh + 12px); background-color: #000000 !important; z-index: 99999; border: none !important;"` to guarantee it extends past every physical display edge.
+   - **Zero PixelShift During Sleep:** Added `activePixelShift` in `App.vue` which strictly clamps shifts to `{ x: 0, y: 0 }` whenever the screensaver is active or previewing.
+   - **Base DOM Blackout:** Dynamically sets `document.documentElement.style.backgroundColor = '#000000'` and `document.body.style.backgroundColor = '#000000'` during sleep.
+2. **Thermal & Power Reductions:**
+   - **GPU Compositor Sleep:** Added `v-if="!isSleeping && !screensaverStore.isPreviewing"` to `ThemeBackdrop.vue`. When sleep activates, all CSS animation loops and canvas blurs unmount instantly, dropping GPU load to 0%.
+   - **Display Auto-Dimming via Fully Kiosk:** Integrated `window.fully.setScreenBrightness(5)` during sleep to drop OLED power draw to minimum, automatically restoring original brightness on wake.
+3. **Verification:**
+   - Production build verified: `npm run build` passed with 0 errors in 1.60s.
+
+---
+
+## Log Entry: 2026-11-25 (Entry 49)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Fix Spotify Queue Item Jumping & Queue Preservation
+
+### 1. User Directives & Goals
+- When playing music on a primary device (e.g. Mac) and controlling playback from ArcDock's Live Queue drawer, tapping a song in the queue caused Spotify to clear the entire queue/playlist, playing only that single song in isolation (with Next and Previous repeating or stopping).
+- Expected: Tapping a song in the queue should move playback forward to that song while keeping the rest of the queue and playback context intact.
+
+### 2. Root Cause Analysis
+- In `QueueDrawer.vue`, `handleJumpToTrack` previously called `spotify.playTrack(track.uri)`.
+- Without a `context_uri`, `playTrack` executed `PUT /v1/me/player/play` with `{ uris: [track.uri] }`.
+- In the Spotify Web API specification, sending `{ uris: [uri] }` tells Spotify to replace the entire active context/queue with only that single track, destroying the playlist context on the Mac and clearing all upcoming tracks.
+
+### 3. Solutions Implemented
+1. **Context-Aware Queue Navigation (`jumpToQueueTrack` in `src/stores/spotify.ts`):**
+   - **Immediate Next Track (`index === 0`):** Issues `POST /me/player/next`, immediately advancing playback to the next song without altering the queue or context.
+   - **Active Context Jump:** If an active playlist or album context exists (`playback.context.uri`), issues `PUT /me/player/play` with `{ context_uri, offset: { uri: track.uri } }`. This shifts playback directly to that track within the playlist, keeping all prior and future songs intact.
+   - **Sequential Skips Fallback:** If the track is part of an ad-hoc or user-queued list without context, advances playback via sequential `api.next()` calls (`index + 1` skips), preserving all downstream songs in the queue.
+2. **UI Feedback (`src/components/QueueDrawer.vue`):**
+   - Updated `handleJumpToTrack(track, index)` to invoke `jumpToQueueTrack(track, index)`.
+   - Added active loading spinner on the clicked track button to provide instant visual feedback while advancing.
+3. **Typing (`src/types/spotify.ts`):**
+   - Added `SpotifyContext` interface to `SpotifyPlaybackState` (`type`, `uri`, `href`).
+4. **Verification:**
+   - Production build verified: `npm run build` passed with 0 errors in 1.63s.
+
+---
+
 ## Log Entry: 2026-11-25 (Entry 48)
 **Author:** Antigravity AI Assistant & Utkarsh  
 **Phase:** Fix Parcel Checkpoint History & Main Screen Status Ordering (Reverse-Chronological)

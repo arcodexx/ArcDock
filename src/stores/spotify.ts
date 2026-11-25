@@ -451,6 +451,55 @@ export const useSpotifyStore = defineStore('spotify', () => {
     }
   };
 
+  /**
+   * Jump to a specific track in the upcoming queue WITHOUT clearing/destroying the queue.
+   * If an active playlist/album context exists, tries context-offset jump.
+   * Otherwise, skips forward by (index + 1) to land on the track with queue intact.
+   */
+  const jumpToQueueTrack = async (track: SpotifyTrack, index: number) => {
+    try {
+      optimisticLockUntil = Date.now() + 3000;
+
+      // 1. If user clicked the immediate next track (index 0), a single skip is the fastest & keeps queue intact
+      if (index === 0) {
+        await api.next();
+        setTimeout(fetchPlayback, 400);
+        setTimeout(fetchQueue, 600);
+        return;
+      }
+
+      // 2. If playback has an active context (e.g. playlist or album), try jumping to offset within context
+      if (playback.value?.context?.uri) {
+        try {
+          await api.play({
+            context_uri: playback.value.context.uri,
+            offset: { uri: track.uri },
+          });
+          setTimeout(fetchPlayback, 400);
+          setTimeout(fetchQueue, 600);
+          return;
+        } catch (contextErr) {
+          console.warn('[Spotify] Context offset jump failed (possibly custom queued track), falling back to skips:', contextErr);
+        }
+      }
+
+      // 3. Fallback: skip forward through upcoming queue items until we reach the selected track
+      const skips = index + 1;
+      const safeSkips = Math.min(skips, 15);
+      for (let i = 0; i < safeSkips; i++) {
+        await api.next();
+        if (i < safeSkips - 1) {
+          await new Promise((r) => setTimeout(r, 60));
+        }
+      }
+      setTimeout(fetchPlayback, 400);
+      setTimeout(fetchQueue, 700);
+    } catch (err: any) {
+      error.value = err.message;
+      throw err;
+    }
+  };
+
   const addToQueue = async (uri: string) => {
     try {
       await api.addToQueue(uri);
@@ -591,6 +640,7 @@ export const useSpotifyStore = defineStore('spotify', () => {
     fetchPlaylistTracks,
     playPlaylist,
     playTrack,
+    jumpToQueueTrack,
     addToQueue,
     searchTracks,
     fetchQueue,
