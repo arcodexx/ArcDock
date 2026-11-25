@@ -4,6 +4,38 @@ This log tracks all architectural discussions, technical decisions, completed st
 
 ---
 
+## Log Entry: 2026-11-25 (Entry 51)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** 12h/24h Time Display Toggle, Calendar Meeting Radar Live Ticker, Settings Input Theme Styling, and README Declutter
+
+### 1. User Directives & Goals
+1. **12h / 24h Unified Clock Toggle:** Provide a time format toggle in Settings that controls both the TopBar clock (previously 12h) and the OLED Screensaver (Minimalist & Flip clock, previously 24h) in complete sync across the app.
+2. **Calendar In-App Live Transition:** The Meeting Radar / Calendar displayed countdowns (e.g. "in 25m") that remained stale until the next 30-minute network fetch. Update meeting status (`isOngoing`, `isPassed`, `minutesUntil`) live in-app without adding extra network requests to the calendar feed.
+3. **Spotify Client ID & Settings Input Theme Consistency:** In Japan theme, the Spotify Client ID field appeared as a harsh dark container with poor text contrast; requested clearly legible, theme-matched input styling.
+4. **Streamline README.md:** Prune deep implementation details (internal polling intervals, theme tables, dark mode handling) from `README.md` to keep it clean and surface-level, while ensuring all technical specifications remain in `docs/SYSTEM_SPEC.md`.
+
+### 2. Solutions Implemented
+1. **Unified 12h/24h Setting:**
+   - Leveraged existing `useTimezonesStore` reactive `timeFormat` ('12h' | '24h') backed by `localStorage['arcdock_timezones_format']`.
+   - Added a Time Display Format card in `SettingsModal.vue` (`[ 12-Hour (05:47 PM) ]` vs `[ 24-Hour (17:47) ]`).
+   - Updated `TopBar.vue` to watch and format time according to `timezones.timeFormat`.
+   - Updated `OledScreensaver.vue` (both Minimalist and Flip Clock modes) to honor `timezones.timeFormat` with synchronized AM/PM badges.
+2. **Calendar In-App Reactivity & Zero-Network Ticker:**
+   - In `src/stores/calendar.ts`, implemented `refreshEventStatuses()` to dynamically re-evaluate `isOngoing`, `isPassed`, and `minutesUntil` against `Date.now()`.
+   - Implemented exact millisecond `setTimeout` triggers scheduled for `msUntilStart + 300` and `msUntilEnd + 300`. When a meeting begins or ends, the status flips the exact moment the transition occurs without requiring a network refresh.
+   - Added a 30-second interval ticker for continuous minute countdowns.
+   - Updated ICS and sample event time formatters to adhere to `timezones.timeFormat` with a watcher on `timeFormat` to reformat displayed event times instantaneously.
+3. **Themed Settings Inputs & Spotify Credentials:**
+   - Replaced hardcoded `bg-neutral-900 border-white/10` in `SettingsModal.vue` with `.settings-input` utilizing CSS custom properties (`--dock-recessed-bg`, `--dock-recessed-border`, `--dock-text-primary`, `--dock-text-muted`, and `--dock-accent`).
+   - In Japan theme, input surfaces render with warm washi paper background (`rgba(248, 244, 246, 0.98)`), delicate sakura borders (`rgba(255, 183, 197, 0.7)`), crisp dark Sumi-e ink text (`#2D3142`), and matcha green accent focus ring (`#7BA23F`).
+   - Formatted the Redirect URI container and Desk PIN inputs to maintain identical high-contrast theme styling.
+4. **Clean README.md:**
+   - Trimmed `README.md` down to a concise, elegant showcase while keeping full polling tables and warm-up sync architecture in `docs/SYSTEM_SPEC.md`.
+5. **Verification:**
+   - Production build verified: `npm run build` completed with 0 errors in 1.76s.
+
+---
+
 ## Log Entry: 2026-11-25 (Entry 50)
 **Author:** Antigravity AI Assistant & Utkarsh  
 **Phase:** Fix Screensaver Border Leakage & Thermal / Display Power Optimizations

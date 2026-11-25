@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useWeatherStore } from '@/stores/weather';
 import { useNetworkStore } from '@/stores/network';
 import { useCalendarStore } from '@/stores/calendar';
 import { usePomodoroStore } from '@/stores/pomodoro';
 import { useGitHubStore } from '@/stores/github';
+import { useTimezonesStore } from '@/stores/timezones';
 import DockPowerModal from '@/components/DockPowerModal.vue';
 import {
   Settings,
@@ -33,6 +34,7 @@ const networkStore = useNetworkStore();
 const calendarStore = useCalendarStore();
 const pomodoroStore = usePomodoroStore();
 const githubStore = useGitHubStore();
+const timezones = useTimezonesStore();
 
 const currentTime = ref('');
 const showConfirmModal = ref(false);
@@ -46,13 +48,18 @@ let lockoutTimer: number | null = null;
 
 const updateClock = () => {
   const now = new Date();
+  const is12h = timezones.timeFormat === '12h';
   currentTime.value = now.toLocaleTimeString('en-US', {
     timeZone: 'Asia/Kolkata',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: true,
+    hour12: is12h,
   });
 };
+
+watch(() => timezones.timeFormat, () => {
+  updateClock();
+});
 
 let timer: number | null = null;
 let minuteSyncTimeout: number | null = null;

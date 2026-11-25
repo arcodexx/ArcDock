@@ -370,17 +370,26 @@ main[data-theme="japan"],
 }
 
 /* Form Controls & Inputs in Japan Mode */
-[data-theme="japan"] input,
+[data-theme="japan"] input:not(.oled-screensaver *),
 [data-theme="japan"] select,
-[data-theme="japan"] textarea {
-  background-color: rgba(248, 244, 246, 0.95) !important;
-  border-color: rgba(255, 183, 197, 0.65) !important;
+[data-theme="japan"] textarea,
+[data-theme="japan"] .settings-input {
+  background-color: rgba(248, 244, 246, 0.98) !important;
+  border-color: rgba(255, 183, 197, 0.7) !important;
   color: #2D3142 !important;
 }
 
-[data-theme="japan"] input::placeholder,
-[data-theme="japan"] textarea::placeholder {
+[data-theme="japan"] input:not(.oled-screensaver *)::placeholder,
+[data-theme="japan"] textarea::placeholder,
+[data-theme="japan"] .settings-input::placeholder {
   color: #8C92A4 !important;
+  opacity: 1 !important;
+}
+
+[data-theme="japan"] input:not(.oled-screensaver *):focus,
+[data-theme="japan"] .settings-input:focus {
+  border-color: #7BA23F !important;
+  box-shadow: 0 0 0 1px #7BA23F !important;
 }
 
 [data-theme="japan"] .bg-spotify-green {

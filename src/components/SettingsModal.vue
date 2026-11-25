@@ -5,6 +5,7 @@ import { useHomeAssistantStore } from '@/stores/homeAssistant';
 import { useFavoritesStore } from '@/stores/favorites';
 import { useScreensaverStore } from '@/stores/screensaver';
 import { useThemeStore } from '@/stores/theme';
+import { useTimezonesStore } from '@/stores/timezones';
 import ThemeBackdrop from '@/components/theme/ThemeBackdrop.vue';
 import {
   X,
@@ -40,6 +41,7 @@ const ha = useHomeAssistantStore();
 const favorites = useFavoritesStore();
 const screensaver = useScreensaverStore();
 const themeStore = useThemeStore();
+const timezones = useTimezonesStore();
 
 const handleTestScreensaver = () => {
   screensaver.testScreensaver();
@@ -181,7 +183,7 @@ const saveDeskPin = () => {
               type="password"
               maxlength="4"
               placeholder="0000"
-              class="w-24 h-10 bg-black/60 border border-white/10 rounded-xl px-2.5 py-2 text-sm text-white text-center tracking-widest font-mono focus:outline-none focus:border-amber-400"
+              class="settings-input w-24 h-10 rounded-xl px-2.5 py-2 text-sm text-center tracking-widest font-mono focus:outline-none"
             />
             <button
               @click="saveDeskPin"
@@ -219,6 +221,46 @@ const saveDeskPin = () => {
               <span class="text-[9px] opacity-70">
                 {{ count === 2 ? '(Phone)' : count === 3 ? '(Wide)' : '(Tablet)' }}
               </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Time Display Format (12h vs 24h) -->
+        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-white/5 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="text-xs font-bold text-white flex items-center gap-1.5">
+              <Clock class="w-3.5 h-3.5 text-amber-400" />
+              <span>Time Display Format</span>
+            </div>
+            <span class="text-[10px] text-neutral-400 font-mono">
+              TopBar & Screensaver
+            </span>
+          </div>
+          <p class="text-[11px] text-neutral-400">
+            Choose whether the top system bar and ambient OLED screensaver display 12-hour (AM/PM) or 24-hour digital time.
+          </p>
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <button
+              type="button"
+              @click="timezones.setTimeFormat('12h')"
+              class="min-h-[40px] px-3 py-2 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              :class="timezones.timeFormat === '12h'
+                ? 'bg-amber-400/20 border-amber-400/50 text-amber-300 shadow-md shadow-amber-400/10'
+                : 'bg-black/60 border-white/10 text-neutral-400 hover:text-white'"
+            >
+              <span>12-Hour</span>
+              <span class="text-[10px] font-mono opacity-80">(05:47 PM)</span>
+            </button>
+            <button
+              type="button"
+              @click="timezones.setTimeFormat('24h')"
+              class="min-h-[40px] px-3 py-2 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              :class="timezones.timeFormat === '24h'
+                ? 'bg-amber-400/20 border-amber-400/50 text-amber-300 shadow-md shadow-amber-400/10'
+                : 'bg-black/60 border-white/10 text-neutral-400 hover:text-white'"
+            >
+              <span>24-Hour</span>
+              <span class="text-[10px] font-mono opacity-80">(17:47)</span>
             </button>
           </div>
         </div>
@@ -346,46 +388,48 @@ const saveDeskPin = () => {
 
         <!-- Client ID input -->
         <div class="space-y-2">
-          <label class="text-xs text-neutral-400 font-medium flex items-center justify-between">
+          <label class="text-xs font-medium flex items-center justify-between" style="color: var(--dock-text-primary);">
             <span>Spotify Client ID</span>
             <a
               href="https://developer.spotify.com/dashboard"
               target="_blank"
-              class="text-spotify-light hover:underline flex items-center gap-1 text-[11px]"
+              class="hover:underline flex items-center gap-1 text-[11px]"
+              style="color: var(--dock-accent);"
             >
               Get one from Spotify Dashboard <ExternalLink class="w-3 h-3" />
             </a>
           </label>
           <div class="flex items-center gap-2">
             <div class="relative flex-1">
-              <Key class="w-4 h-4 text-neutral-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Key class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors" style="color: var(--dock-text-muted);" />
               <input
                 v-model="localClientId"
                 type="text"
                 placeholder="e.g. 4d7b2e987c..."
-                class="w-full bg-neutral-900 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-spotify-green transition-colors font-mono"
+                class="settings-input w-full rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none transition-colors font-mono"
               />
             </div>
           </div>
         </div>
 
         <!-- Redirect URI Box -->
-        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-white/5 space-y-1.5">
-          <div class="flex items-center justify-between text-xs text-neutral-400">
+        <div class="p-3.5 rounded-2xl space-y-1.5" style="background-color: var(--dock-card-bg); border: 1px solid var(--dock-card-border); box-shadow: var(--dock-card-shadow);">
+          <div class="flex items-center justify-between text-xs" style="color: var(--dock-text-muted);">
             <span>Required Redirect URI in Spotify Dashboard:</span>
             <button
               @click="copyRedirectUri"
-              class="flex items-center gap-1 text-spotify-light hover:text-white transition-colors cursor-pointer"
+              class="flex items-center gap-1 hover:opacity-80 transition-opacity cursor-pointer"
+              style="color: var(--dock-accent);"
             >
-              <Check v-if="copied" class="w-3.5 h-3.5 text-spotify-green" />
+              <Check v-if="copied" class="w-3.5 h-3.5" />
               <Copy v-else class="w-3.5 h-3.5" />
               <span>{{ copied ? 'Copied' : 'Copy' }}</span>
             </button>
           </div>
-          <div class="text-xs font-mono text-neutral-300 break-all select-all bg-black px-3 py-2 rounded-lg border border-white/5">
+          <div class="text-xs font-mono break-all select-all px-3 py-2 rounded-lg" style="background-color: var(--dock-recessed-bg); border: 1px solid var(--dock-recessed-border); color: var(--dock-text-primary);">
             {{ spotify.redirectUri }}
           </div>
-          <div class="text-[11px] text-neutral-500 pt-1">
+          <div class="text-[11px] pt-1" style="color: var(--dock-text-muted);">
             Add this exact URL to "Redirect URIs" in your Spotify App settings.
           </div>
         </div>
@@ -461,5 +505,19 @@ const saveDeskPin = () => {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.settings-input {
+  background-color: var(--dock-recessed-bg, rgba(0, 0, 0, 0.6));
+  border: 1px solid var(--dock-recessed-border, rgba(255, 255, 255, 0.1));
+  color: var(--dock-text-primary, #ffffff);
+}
+.settings-input::placeholder {
+  color: var(--dock-text-muted, #737373);
+  opacity: 0.8;
+}
+.settings-input:focus {
+  border-color: var(--dock-accent, #10B981) !important;
+  box-shadow: 0 0 0 1px var(--dock-accent, #10B981) !important;
 }
 </style>

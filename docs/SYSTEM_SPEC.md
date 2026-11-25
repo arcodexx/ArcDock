@@ -544,6 +544,25 @@ Rather than cramming API keys and city searches into a distant centralized setti
 * **Newest-First Parcel Ordering:** Parcels are ordered with the newest shipment at index 0 (`parcels[0]`), displayed by default on the main desk dashboard and in Control Center.
 * **Checkpoint Timeline Sorting:** Automatic timestamp parser (`getEventTimestamp`) and status classifier (`sortEventsNewestFirst`) place the latest transit checkpoint (`"In transit bag added to trip"`) at index 0 with the active green dot, cascading down to the earliest event (`"Order received"`) at the bottom.
 
+#### 5. Background Polling Intervals & Network Warm-Up Engine
+ArcDock balances live glanceability with API rate limits and battery conservation:
+
+| Service | Refresh Interval | Strategy / Rate Limit Context |
+| :--- | :--- | :--- |
+| **Home Assistant** | **Instant (0ms)** | Real-time push over persistent WebSocket |
+| **Spotify Remote** | **Every 2s / 5s** | Active playback tracking (2s playing, 5s paused) |
+| **LAN Clipboard** | **Every 2.5s** | Instant copy/paste synchronization across LAN |
+| **Network Ping** | **Every 10s** | Live ping to Cloudflare edge |
+| **Weather** | **Every 15 min** | Open-Meteo ambient temperature and condition |
+| **Calendar** | **Every 30 min** | 2 requests/hour (completely safe for Google/Outlook) |
+| **GitHub** | **Every 1 hour** | 1–3 requests/hour (`< 3%` of unauthenticated limit) |
+| **Parcels** | **Manual Only** | On-demand to prevent courier bot detection |
+
+* **Zero-Touch Cold-Boot Warm-Up Sync:**
+  * On device power-on, the browser web app starts up before Android finishes its Wi-Fi DHCP handshake.
+  * Staggered retries run at **5s** and **15s** after boot.
+  * Attaches a `window.addEventListener('online', ...)` listener that immediately triggers a full data fetch the millisecond Wi-Fi connects.
+
 ---
 
 ## 5. Security & Privacy

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useSpotifyStore } from '@/stores/spotify';
 import { useScreensaverStore } from '@/stores/screensaver';
+import { useTimezonesStore } from '@/stores/timezones';
 import { Moon, Music } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -10,9 +11,11 @@ const emit = defineEmits<{
 
 const spotify = useSpotifyStore();
 const screensaverStore = useScreensaverStore();
+const timezones = useTimezonesStore();
 
 const hours = ref('00');
 const minutes = ref('00');
+const ampm = ref('');
 const rawHours = ref(0);
 const rawMinutes = ref(0);
 const dateString = ref('');
@@ -21,10 +24,23 @@ const updateDateTime = () => {
   const now = new Date();
   rawHours.value = now.getHours();
   rawMinutes.value = now.getMinutes();
-  hours.value = String(rawHours.value).padStart(2, '0');
+
+  if (timezones.timeFormat === '12h') {
+    const h12 = rawHours.value % 12 || 12;
+    hours.value = String(h12).padStart(2, '0');
+    ampm.value = rawHours.value >= 12 ? 'PM' : 'AM';
+  } else {
+    hours.value = String(rawHours.value).padStart(2, '0');
+    ampm.value = '';
+  }
+
   minutes.value = String(rawMinutes.value).padStart(2, '0');
   dateString.value = now.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
 };
+
+watch(() => timezones.timeFormat, () => {
+  updateDateTime();
+});
 
 // Word clock matrix calculation
 const wordMatrixState = computed(() => {
@@ -139,8 +155,13 @@ const handleWake = (e: Event) => {
     <div class="flex flex-col items-center text-center space-y-4 max-w-2xl px-4">
       <!-- THEME 1: Minimalist Typography (Inherits Active Theme Font & Styling) -->
       <template v-if="screensaverStore.theme === 'minimalist'">
-        <div class="text-7xl sm:text-8xl lg:text-9xl font-black tracking-tight text-white/90 drop-shadow-sm font-inherit">
-          {{ hours }}:{{ minutes }}
+        <div class="flex items-baseline justify-center gap-2.5 font-inherit">
+          <span class="text-7xl sm:text-8xl lg:text-9xl font-black tracking-tight text-white/90 drop-shadow-sm font-inherit">
+            {{ hours }}:{{ minutes }}
+          </span>
+          <span v-if="ampm" class="text-xl sm:text-2xl font-bold font-mono text-neutral-500 uppercase tracking-wider">
+            {{ ampm }}
+          </span>
         </div>
         <div class="text-sm sm:text-base lg:text-lg font-medium tracking-widest text-neutral-500 uppercase font-inherit">
           {{ dateString }}
@@ -149,7 +170,7 @@ const handleWake = (e: Event) => {
 
       <!-- THEME 2: Retro Flip Clock (Explicit Deep OLED Black, never turned white) -->
       <template v-else-if="screensaverStore.theme === 'flip'">
-        <div class="flex items-center gap-3 sm:gap-6 font-mono font-bold">
+        <div class="flex items-center gap-2.5 sm:gap-4 font-mono font-bold">
           <!-- Hours Flap -->
           <div class="relative w-28 sm:w-36 h-28 sm:h-36 bg-[#0E0E12] border border-[#1E1E26] rounded-2xl flex items-center justify-center text-5xl sm:text-7xl text-white shadow-2xl overflow-hidden">
             <div class="absolute inset-x-0 top-1/2 h-[1px] bg-black/80 z-10"></div>
@@ -160,6 +181,10 @@ const handleWake = (e: Event) => {
           <div class="relative w-28 sm:w-36 h-28 sm:h-36 bg-[#0E0E12] border border-[#1E1E26] rounded-2xl flex items-center justify-center text-5xl sm:text-7xl text-white shadow-2xl overflow-hidden">
             <div class="absolute inset-x-0 top-1/2 h-[1px] bg-black/80 z-10"></div>
             <span>{{ minutes }}</span>
+          </div>
+          <!-- 12h AM/PM Flap Pill -->
+          <div v-if="ampm" class="px-2.5 py-1.5 rounded-xl bg-[#0E0E12] border border-[#1E1E26] text-xs font-mono font-bold text-neutral-400 uppercase tracking-widest shadow-lg">
+            {{ ampm }}
           </div>
         </div>
         <div class="text-sm sm:text-base font-medium tracking-widest text-neutral-500 uppercase font-inherit">

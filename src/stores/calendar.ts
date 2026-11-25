@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
+import { useTimezonesStore } from '@/stores/timezones';
 
 export interface CalendarEvent {
   id: string;
@@ -25,6 +26,8 @@ export const useCalendarStore = defineStore('calendar', () => {
   const FEED_URL_KEY = 'arcdock_calendar_feed_url';
   const USE_SAMPLE_KEY = 'arcdock_calendar_sample';
 
+  const timezones = useTimezonesStore();
+
   const storedUrl = localStorage.getItem(FEED_URL_KEY) || '';
   const storedSample = localStorage.getItem(USE_SAMPLE_KEY);
 
@@ -34,6 +37,66 @@ export const useCalendarStore = defineStore('calendar', () => {
   const events = ref<CalendarEvent[]>([]);
   const isLoading = ref<boolean>(false);
   const lastSync = ref<Date | null>(null);
+
+  let minuteTicker: number | null = null;
+  let eventTimers: number[] = [];
+
+  // Re-evaluates isOngoing, isPassed, and minutesUntil dynamically against current client clock
+  // and schedules exact start/end timers so the UI updates without requiring network fetches
+  const refreshEventStatuses = () => {
+    if (events.value.length === 0) return;
+    const nowMs = Date.now();
+
+    // Clear previous pending transition timers
+    eventTimers.forEach((t) => window.clearTimeout(t));
+    eventTimers = [];
+
+    events.value = events.value.map((ev) => {
+      const startMs = new Date(ev.startTime).getTime();
+      const endMs = new Date(ev.endTime).getTime();
+
+      const isOngoing = nowMs >= startMs && nowMs <= endMs;
+      const isPassed = nowMs > endMs;
+      const minutesUntil = Math.round((startMs - nowMs) / 60000);
+
+      // Schedule exact transitions:
+      // A. If event hasn't started yet, schedule a timer for the exact start millisecond
+      if (nowMs < startMs) {
+        const msUntilStart = startMs - nowMs;
+        if (msUntilStart > 0 && msUntilStart <= 24 * 3600 * 1000) {
+          const t = window.setTimeout(refreshEventStatuses, msUntilStart + 300);
+          eventTimers.push(t);
+        }
+      }
+      // B. If event is currently ongoing, schedule a timer for the exact end millisecond
+      else if (nowMs < endMs) {
+        const msUntilEnd = endMs - nowMs;
+        if (msUntilEnd > 0 && msUntilEnd <= 24 * 3600 * 1000) {
+          const t = window.setTimeout(refreshEventStatuses, msUntilEnd + 300);
+          eventTimers.push(t);
+        }
+      }
+
+      if (
+        ev.isOngoing !== isOngoing ||
+        ev.isPassed !== isPassed ||
+        ev.minutesUntil !== minutesUntil
+      ) {
+        return {
+          ...ev,
+          isOngoing,
+          isPassed,
+          minutesUntil,
+        };
+      }
+      return ev;
+    });
+  };
+
+  const startMinuteTicker = () => {
+    if (minuteTicker) return;
+    minuteTicker = window.setInterval(refreshEventStatuses, 30_000);
+  };
 
   // Generate lean sample events for immediate testing
   const generateSampleEvents = (): CalendarEvent[] => {
@@ -55,13 +118,19 @@ export const useCalendarStore = defineStore('calendar', () => {
     const e3End = new Date(tomorrow.getTime() + 45 * 60 * 1000);
     const tomorrowStr = tomorrow.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
 
+    const is12h = timezones.timeFormat === '12h';
+    const fmt = (d: Date) => d.toLocaleTimeString('en-US', {
+      timeZone: 'Asia/Kolkata',
+      hour: is12h ? 'numeric' : '2-digit',
+      minute: '2-digit',
+      hour12: is12h
+    });
+
     const formatRange = (s: Date, e: Date) => {
-      const sStr = s.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true });
-      const eStr = e.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true });
+      const sStr = fmt(s);
+      const eStr = fmt(e);
       return `${sStr} - ${eStr}`;
     };
-
-    const fmt = (d: Date) => d.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true });
 
     return [
       {
@@ -258,11 +327,12 @@ export const useCalendarStore = defineStore('calendar', () => {
     let currentEvent: Record<string, string> = {};
 
     const formatTime = (d: Date) => {
+      const is12h = timezones.timeFormat === '12h';
       return d.toLocaleTimeString('en-US', {
         timeZone: TARGET_TIMEZONE,
-        hour: 'numeric',
+        hour: is12h ? 'numeric' : '2-digit',
         minute: '2-digit',
-        hour12: true,
+        hour12: is12h,
       });
     };
 
@@ -400,6 +470,8 @@ export const useCalendarStore = defineStore('calendar', () => {
     if (useSampleEvents.value) {
       events.value = generateSampleEvents();
       lastSync.value = new Date();
+      refreshEventStatuses();
+      startMinuteTicker();
       return;
     }
 
@@ -416,6 +488,8 @@ export const useCalendarStore = defineStore('calendar', () => {
         const icsText = await res.text();
         events.value = parseIcsText(icsText);
         lastSync.value = new Date();
+        refreshEventStatuses();
+        startMinuteTicker();
       } else {
         console.warn('Calendar feed fetch failed with HTTP', res.status);
         // If boot occurred before network ready, retry in 10s
@@ -505,7 +579,21 @@ export const useCalendarStore = defineStore('calendar', () => {
       window.clearInterval(pollTimer);
       pollTimer = null;
     }
+    if (minuteTicker) {
+      window.clearInterval(minuteTicker);
+      minuteTicker = null;
+    }
+    eventTimers.forEach((t) => window.clearTimeout(t));
+    eventTimers = [];
   };
+
+  // Re-format times whenever the user toggles 12h/24h in Settings
+  watch(
+    () => timezones.timeFormat,
+    () => {
+      fetchCalendar();
+    }
+  );
 
   // Fetch immediately on store initialization
   fetchCalendar();
