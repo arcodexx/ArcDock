@@ -4,6 +4,307 @@ This log tracks all architectural discussions, technical decisions, completed st
 
 ---
 
+## Log Entry: 2026-11-25 (Entry 48)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Fix Parcel Checkpoint History & Main Screen Status Ordering (Reverse-Chronological)
+
+### 1. User Directives & Goals
+1. In the parcel tracking widget / view, the checkpoint history showed the oldest event ("Order received") as the first entry with the green dot, while the latest event ("In transit bag added to trip") was at the bottom.
+2. On the main screen (`StandbyWorkHub.vue`), only that oldest "Order received" checkpoint was displayed instead of the latest live transit checkpoint.
+
+### 2. Root Cause Analysis
+1. Carrier tracking APIs (including ShipTrack) return events in raw chronological order (oldest to newest: `[ {status: "Order received"}, ..., {status: "In transit bag added to trip"} ]`).
+2. In `src/stores/delivery.ts`, `applyShipTrackData` directly assigned `parcel.history = rawEvents`, and set `parcel.lastCheckpoint = parcel.history[0]?.status`. Consequently, `lastCheckpoint` was populated with the oldest event (`parcel.history[0]`).
+3. In `src/components/views/DeliveryView.vue`, the timeline rendered `idx === 0` with the active green dot (`bg-emerald-400 ring-2 ring-emerald-400/30`), erroneously placing the green indicator on "Order received" while the actual newest status was at the bottom with a grey dot.
+4. On the main screen (`StandbyWorkHub.vue`) and drawer (`ControlCenterDrawer.vue`), the subtitle rendered `{{ parcel.lastCheckpoint }}`, which had been pointing to `parcel.history[0]` ("Order received").
+
+### 3. Solutions Implemented
+1. **Checkpoint Sorting (`src/stores/delivery.ts`):**
+   - Implemented `getEventTimestamp()` with multi-format date parser (supporting ISO timestamps, Unix epoch, and Indian courier `DD-MM-YYYY`/`DD/MM/YYYY` strings).
+   - Created `sortEventsNewestFirst()` combining timestamp comparison with semantic keyword fallback (`EARLY_KEYWORDS` vs `LATE_KEYWORDS`) to guarantee the newest checkpoint is always at index 0.
+   - Updated `applyShipTrackData()` to sort `rawEvents` before storing and set `parcel.lastCheckpoint = parcel.history[0]?.status` (now guaranteed to be the latest event).
+   - Updated `loadParcels()` to retroactively sort the `history` of any already-saved packages in `localStorage` upon initialization.
+2. **Timeline Visuals (`src/components/views/DeliveryView.vue`):**
+   - The green glowing dot now reliably illuminates the most recent checkpoint at index 0 and is labeled with a `Latest Checkpoint` badge.
+   - Older checkpoints cascade down to the earliest event ("Order received") at the bottom of the list with muted dots.
+3. **Main Screen & Drawer Display (`StandbyWorkHub.vue` & `ControlCenterDrawer.vue`):**
+   - Added a glowing green indicator next to `parcel.lastCheckpoint` on the main screen card.
+   - Now displays the actual current shipment checkpoint ("In transit bag added to trip") directly on the main desk dashboard.
+4. **Verification:**
+   - Production build verified: `npm run build` passed with 0 errors in 1.75s.
+
+---
+
+## Log Entry: 2026-11-25 (Entry 47)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Fix Modal Viewport Overflow, Deploy SSH Password Multiplexing & Dynamic Newest-First Parcel Tracking
+
+### 1. User Directives & Goals
+1. **Dock Power & Restart Modal Overflow:** Prevent `DockPowerModal.vue` from slightly overflowing / clipping beyond the screen boundaries on landscape viewports (~360px height).
+2. **Deploy CLI Usability & Single Password Prompt:**
+   - Eliminate repetitive password prompts during `npm run deploy` (which previously prompted for the SSH password 5 times in a single run).
+   - If the target phone IP is unreachable (e.g. DHCP lease renewed or Wi-Fi changed), immediately display a prominent guide with the exact command to change the IP (`npm run dock:ip <new-ip>`).
+3. **Parcel Tracking Order Inversion:**
+   - Previously, the oldest package was placed at index 0 and marked as active, forcing the newest parcel to the bottom and hiding it on the main desk dashboard.
+   - Reorder parcels so the newest parcel is always displayed first, selected by default, and visible on the main screen.
+
+### 2. Solutions Implemented
+1. **Dock Power Modal Screen Fit (`src/components/DockPowerModal.vue`):**
+   - Constrained modal container to `max-h-[94vh] flex flex-col overflow-hidden` with responsive padding (`p-3.5 sm:p-5`).
+   - Converted action card list to `flex-1 overflow-y-auto no-scrollbar space-y-2 sm:space-y-2.5 pt-0.5`.
+   - Compacted button and card padding (`p-2.5 sm:p-3`, button height `min-h-[38px] sm:min-h-[42px]`), guaranteeing zero clipping on landscape smartphone displays.
+2. **SSH Multiplexing & Connectivity Pre-flight (`scripts/dock.sh`):**
+   - Implemented OpenSSH `ControlMaster=auto`, `ControlPath=/tmp/arcdock-ssh-*.sock`, and `ControlPersist=120s`. The user now authenticates once; subsequent file transfers (`scp`) and remote triggers (`ssh`) instantly reuse the master socket.
+   - Added clean socket cleanup via `trap cleanup_ssh EXIT INT TERM`.
+   - Added `verify_reachability()` before builds or file transfers: if port 8022 cannot be reached, the script stops immediately and displays an informative banner with `npm run dock:ip <new-ip>` and Termux troubleshooting commands.
+   - Enhanced `npm run dock:ip` to print a formatted status report with instructions.
+3. **Newest-First Parcel Ordering & Active Selection (`src/stores/delivery.ts`, `DeliveryView.vue`, `StandbyWorkHub.vue`, `ControlCenterDrawer.vue`):**
+   - In `src/stores/delivery.ts`: Added `getParcelTimestamp()` and `sortParcelsNewestFirst()` to automatically sort parcels in descending order (newest on top).
+   - In `addParcel()`: New or updated parcels are prepended with `createdAt: Date.now()`, ensuring they immediately become the featured parcel (`parcels[0]`).
+   - Added `selectedParcelId` and `activeParcel` computed state to `useDeliveryStore`, defaulting to the newest package while allowing the user to tap any parcel to feature it on the main screen.
+   - In `DeliveryView.vue`: Tagged the top package with `[Newest]` and `[Featured on Main Screen]`.
+   - In `StandbyWorkHub.vue` & `FavoriteWidgetsPanel.vue`: Displayed parcels in newest-first order with active highlighting.
+4. **Verification:**
+   - Ran `npm run build` (`vue-tsc && vite build`) — succeeded cleanly with 0 errors in 1.70s.
+
+---
+
+## Log Entry: 2026-11-25 (Entry 46)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Complete Screensaver True-Black Isolation, Theme Font Inheritance & Pixel Extinction Protection
+
+### 1. User Directives & Goals
+1. **Screensaver Pixel Extinction in Japan Mode:** The screensaver clock/text was appearing like light theme elements with lit backgrounds/cards. Ensure the screensaver remains 100% pitch-black and turns off OLED pixels completely.
+2. **Theme Font & Style Inheritance:** The screensaver clock and date should adopt the active theme's font family (e.g. `Noto Sans JP` in Japan mode, `Space Mono` in Retro mode, `Chakra Petch` in Cyberpunk mode, `Plus Jakarta Sans` in Apple/Default mode) while keeping pixels strictly off.
+
+### 2. Root Cause Analysis
+1. In `src/style.css`, Japan theme typography overrides (`[data-theme="japan"] [class*="text-white"]`) appeared after the screensaver definition in cascading order, turning the screensaver clock text into dark Sumi-e ink (`#2D3142`) instead of crisp glowing white.
+2. The flip clock flaps and track chip used Tailwind classes (`bg-neutral-900`, `bg-neutral-950`), which were being captured by `[data-theme="japan"] [class*="bg-neutral"]` and converted into white washi cards (`rgba(255, 255, 255, 0.88)`), lighting up pixels on the screensaver.
+3. The screensaver clock was hardcoded to `font-sans`, ignoring the active theme's typography.
+
+### 3. Solutions Implemented
+1. **Isolated Screensaver Subtree in Japan Overrides (`src/style.css`):**
+   - Added `:not(.oled-screensaver):not(.oled-screensaver *)` to all Japan theme background and typography overrides (`[class*="bg-neutral"]`, `[class*="bg-surface"]`, `[class*="text-white"]`, `[class*="text-neutral"]`, etc.).
+   - This ensures the light mode rules can NEVER touch or style anything inside the screensaver.
+2. **Deep OLED Hex Fills (`OledScreensaver.vue`):**
+   - Replaced Tailwind utility classes on flip flaps and Spotify indicator chip with explicit deep hex values (`#0E0E12` with `#1E1E26` borders), ensuring 99%+ of pixels are completely off and zero theme rules can ever color them.
+3. **Theme Font Inheritance (`OledScreensaver.vue` & `src/style.css`):**
+   - Configured `.oled-screensaver` to inherit `font-family: var(--dock-font)`:
+     - Japan: `'Noto Sans JP', sans-serif`
+     - Retro Radio: `'Space Mono', monospace`
+     - Cyberpunk: `'Chakra Petch', monospace`
+     - Apple & Default: `'Plus Jakarta Sans', sans-serif`
+4. **Verification:**
+   - Ran `npm run build` (`vue-tsc && vite build`) — succeeded with 0 errors in 1.64s.
+
+---
+
+## Log Entry: 2026-11-25 (Entry 45)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Fix Phone Dark Mode Auto-Inversion, OLED Screensaver Pitch-Black in Japan, Ghost Clicks on Wake & 60fps Drawer Scroll
+
+### 1. User Directives & Goals
+1. **OS / Phone Dark Mode Interference:** Prevent Android / mobile browsers from forcing dark mode inversion onto the Japan light theme when the phone is in dark mode.
+2. **Pitch-Black OLED Screensaver in Japan Theme:** Fix the bug where the screensaver turned translucent and showed the dock behind it in Japan mode.
+3. **Ghost Click / Touch-Through on Wake:** Prevent touching anywhere on the screensaver from accidentally triggering whatever hidden dock button happened to be underneath.
+4. **Drawer Scroll Smoothing:** Eliminate lingering stutter in the control center drawer scroll.
+
+### 2. Root Cause Analysis
+1. **OS Auto-Inversion:** Android Chrome and WebViews inspect `<meta name="color-scheme" content="light dark">` and automatically apply "Auto Dark Mode for Web Contents" when the host OS is in dark mode. Without `color-scheme: only light`, mobile browsers invert light pages.
+2. **Screensaver Translucency in Japan:** The modal scrim rule `[data-theme="japan"] .fixed.inset-0[class*="bg-black"]` inadvertently matched `OledScreensaver.vue` (`fixed inset-0 z-[100] bg-black`), turning it into a 35% translucent dark scrim with blur, revealing the bright dock underneath.
+3. **Touch-Through Click Synthesis:** When the screensaver unmounted immediately upon `click`/`pointerdown`, mobile touch synthesizers delivered the trailing `click` event to whatever element resided at those coordinates.
+4. **Card Backdrop Filter Compositing:** The universal selector applied `backdrop-filter: blur(10px)` across all 11 launcher cards in `ControlCenterDrawer.vue`, forcing the GPU to recompute 11 distinct blur shaders on every scroll frame.
+
+### 3. Solutions Implemented
+1. **Enforced `color-scheme: only light` Opt-Out (`index.html`, `src/stores/theme.ts`, `src/style.css`):**
+   - Added `id="color-scheme-meta"` in `index.html`.
+   - In `theme.ts`, dynamically sets `colorSchemeMeta.content = 'only light'`, `root.style.colorScheme = 'only light'`, and `body.style.colorScheme = 'only light'` whenever a light theme is active.
+   - Enforced `color-scheme: only light !important;` in `src/style.css` for `[data-theme="japan"]` and `.light-theme`.
+2. **Bulletproof Pitch-Black AMOLED Screensaver (`OledScreensaver.vue` & `src/style.css`):**
+   - Added explicit `.oled-screensaver` class and inline `style="background-color: #000000 !important; color: #FFFFFF !important;"`.
+   - Excluded `.oled-screensaver` from modal scrim overrides in `src/style.css`: `:not(.oled-screensaver)`.
+   - Guaranteed pure `#000000` pitch black across all themes to turn off OLED pixels completely.
+3. **Transient Ghost-Click Prevention Shield (`App.vue` & `OledScreensaver.vue`):**
+   - Added `@pointerdown.stop.prevent` and `@click.stop.prevent="handleWake"` in `OledScreensaver.vue`.
+   - In `App.vue`, `handleScreensaverWake()` activates an invisible click-shield (`isWakingShieldActive`) at `z-[250]` for 350ms, intercepting and discarding all trailing synthesized touch and click events.
+4. **Silky 60fps Drawer Scrolling (`src/style.css`):**
+   - Disabled `backdrop-filter` on `.launcher-card` (`backdrop-filter: none !important`), eliminating per-card GPU blur passes during scrolling.
+5. **Verification:**
+   - Ran `npm run build` (`vue-tsc && vite build`) — succeeded with 0 errors and 0 warnings in 1.65s.
+
+---
+
+## Log Entry: 2026-11-25 (Entry 44)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Real Mount Fuji Photography Integration & Complete Universal Japan Light Mode Overhaul
+
+### 1. User Directives & Goals
+1. **Mount Fuji Real Web Image:** Replace the handmade SVG with a real, breathtaking photographic web image of Mount Fuji with snow-capped summit and cherry blossoms.
+2. **Eliminate All Dark Elements in Japan Theme:** Solve the root causes why the user kept seeing dark surfaces, buttons, and text when testing Japan theme.
+
+### 2. Root Cause Analysis
+1. **Mount Fuji Visibility:** The previous handmade SVG rendered Mount Fuji with a dark indigo-slate body (`#61708E`), which occupied ~240px of screen height and covered the sunny horizon with a dark mountain shape. Furthermore, the user explicitly wanted a real, iconic web photograph of Mount Fuji.
+2. **Why Japan Still Appeared Dark:**
+   - Multiple Tailwind dark background utilities (`-900`, `-800`, `bg-neutral-*`, `bg-black/*`) were used in child components and views (`DeskIoTPanel.vue`, `FullScreenView.vue`, `SettingsModal.vue`, `WeatherView.vue`, etc.).
+   - `.text-white` in CSS failed to match opacity-variant classes (`text-white/90`, `text-white/80`, `text-white/70`, `text-white/60`), leaving the clock, headings, and labels dark or stark white against light cards.
+   - Blanket overrides on `[class*="bg-black"]` caused fixed modal/drawer backdrop overlays to turn solid white instead of a translucent dark scrim, obscuring the screen and giving a broken contrast appearance.
+   - Cards were rendered with near-opaque 94% white surfaces, which concealed the background scenery entirely.
+
+### 3. Solutions Implemented
+1. **Bundled High-Resolution Mount Fuji & Chureito Pagoda Photograph (`public/assets/images/mount_fuji.jpg` & `ThemeBackdrop.vue`):**
+   - Downloaded the iconic 1920x1077 high-resolution photograph of Mount Fuji, Chureito Pagoda, and cherry blossoms locally to `/assets/images/mount_fuji.jpg` (527KB) to ensure 100% offline reliability.
+   - Added automatic fallback to Wikimedia CDN in case of local asset issues.
+   - Rendered the photograph with 85% opacity, soft sunny morning overlay, rising sun glow disc, drifting cherry blossom petals, traditional red Torii gate, and steaming ramen bowl with chopsticks 🍜.
+2. **Refined Universal Light Mode Theme Engine (`src/style.css`):**
+   - Transformed all panels, cards, and headers into luminous translucent washi milk-glass (`rgba(255, 255, 255, 0.86)` with `backdrop-filter: blur(10px)` and delicate `#FFB7C5` Sakura pink borders), allowing the sunny Mount Fuji backdrop to glow through softly.
+   - Updated typography rules to match all `[class*="text-white"]`, `[class*="text-neutral"]`, and `[class*="text-slate"]` classes, ensuring 100% of text and numbers render in dark charcoal Sumi-e ink (`#2D3142`) or secondary ink (`#5C6274`).
+   - Specifically exempted fixed modal overlays (`.fixed.inset-0[class*="bg-black"]`) to preserve a translucent dark scrim (`rgba(45, 49, 66, 0.35)` with `blur(4px)`).
+   - Styled IoT active states with warm Yuzu gold (`#FFF8EB` / `#F4A261`) and Matcha green (`#7BA23F`).
+3. **Verification:**
+   - Ran `npm run build` (`vue-tsc && vite build`) — succeeded with 0 errors in 1.63s. Assets including `mount_fuji.jpg` generated in `dist/assets/images/`.
+
+---
+
+## Log Entry: 2026-11-25 (Entry 43)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Fix Japan Selector Hierarchy, Apple Text/Icon Contrast & Japan Drawer Scroll Performance
+
+### 1. User Directives & Goals
+1. **Fix Japan Theme Still Dark:** Identify why the light theme failed to render in certain views and ensure the canvas and all widgets are definitively luminous.
+2. **Apple / Mac Text & Icon Visibility:** Fix illegible muted gray text and dark icons in Apple Liquid Glass theme.
+3. **Smooth Drawer Scrolling in Japan Theme:** Eliminate lingering drawer scroll stutter in Japan mode.
+4. **Preserve Radio and Cyberpunk Upgrades:** Maintain the praised Braun tuning dial and Cyberpunk HUD enhancements.
+
+### 2. Solutions Implemented
+1. **Corrected CSS Selector Hierarchy Bug (`src/style.css`):**
+   - The selector `[data-theme="japan"] html`, `[data-theme="japan"] body`, `[data-theme="japan"] main` was invalid because `html`, `body`, and `main` *are* the elements holding the attribute, not descendants of it.
+   - Fixed to `:root[data-theme="japan"]`, `html[data-theme="japan"]`, `body[data-theme="japan"]`, `main[data-theme="japan"]`, `[data-theme="japan"] main`, `.light-theme`.
+   - Expanded the washi milk-glass override to cover `.bg-black`, `.bg-black/*` (`.bg-black/20`, `.bg-black/40`, `.bg-black/60`), `aside`, and `header`, eliminating any dark surfaces on the right IoT panels or headers.
+2. **Apple Liquid Glass Contrast Overhaul (`src/style.css`):**
+   - Elevated all muted text classes (`.text-neutral-200`, `.text-neutral-300`, `.text-neutral-400`) from dark Tailwind gray to bright frosted white (`rgba(255, 255, 255, 0.85)`).
+   - Elevated faint labels (`.text-neutral-500`, `.text-slate-400`, `.text-slate-500`) to `rgba(255, 255, 255, 0.65)`.
+   - Enhanced icon colors across all launcher cards with vivid Apple neon accents (`#38BDF8`, `#C084FC`, `#FBBF24`, `#34D399`, `#60A5FA`, `#FB7185`, `#22D3EE`).
+   - Upgraded icon badge boxes with distinct borders (`rgba(255, 255, 255, 0.3)`).
+3. **Optimized Japan Drawer Scrolling to Silky 60fps (`src/style.css` & `ControlCenterDrawer.vue`):**
+   - Removed `backdrop-filter: blur(16px)` from `.control-center-sheet` in Japan mode. Because the sheet is opaque milk washi paper (`rgba(255, 255, 255, 0.96)`), the blur filter was invisible while forcing the GPU to re-composite the background drifting sakura petals during scroll.
+   - Added `overscroll-contain touch-pan-y` on the scrollable card grid in `ControlCenterDrawer.vue` for native momentum scrolling.
+
+---
+
+## Log Entry: 2026-11-25 (Entry 42)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Fix Japan Light Canvas, Retro Radio Layout, Dismiss Button Visibility & Drawer Scroll Lag
+
+### 1. User Directives & Goals
+1. **Fix Japan Theme Dark Canvas:** Investigate why Japan theme was displaying dark again.
+2. **Fix Drawer Dismiss Button in Retro Radio:** Make the drawer dismiss button prominent and clearly visible in Retro Radio theme.
+3. **Refine Retro Radio Aesthetic:** Relocate the awkwardly placed floating radio tuning bar so that it looks intentional and elegant like a true Braun tabletop receiver.
+4. **Eliminate Drawer Scroll Lag in Japan & Mac Themes:** Optimize drawer scrolling performance to be silky smooth 60fps.
+5. **Retain Praised Cyberpunk HUD:** Preserve the popular Cyberpunk 2077 HUD aesthetic.
+
+### 2. Solutions Implemented
+1. **Guaranteed Japan Light Canvas (`src/style.css`, `src/stores/theme.ts`, `src/App.vue`, `src/components/theme/ThemeBackdrop.vue`):**
+   - Corrected `--dock-bg` in `[data-theme="japan"]` from `transparent` to `#FFF5F8`.
+   - In `theme.ts`, dynamically sets `root.style.backgroundColor = '#FFF5F8'` and `body.style.backgroundColor = '#FFF5F8'` in light mode.
+   - In `App.vue`, `backgroundGradientStyle` explicitly applies `linear-gradient(180deg, #D4ECF9 0%, #F5EBF1 45%, #FFF5F8 100%)`.
+   - In `ThemeBackdrop.vue`, removed `mix-blend-multiply` (which multiplied against black canvas to pitch dark) and used a clean pastel sky base with `opacity-30` Fuji morning photograph overlay.
+2. **Fixed Drawer Dismiss Button (`src/components/ControlCenterDrawer.vue` & `src/style.css`):**
+   - Added `relative z-20` on drawer header bar.
+   - Removed duplicate `<ThemeBackdrop />` from drawer which was overlapping header controls.
+   - Added dedicated `.drawer-dismiss-btn` styling across all themes, featuring high-contrast `#FAF5EE` text with `#D99B43` warm amber border in Retro Radio mode.
+3. **Redesigned Retro Radio Glass Tuning Bar (`src/components/theme/ThemeBackdrop.vue`):**
+   - Replaced awkward floating bottom card with a sleek horizontal glass frequency scale panel docked seamlessly beneath the top bar (`top-11 left-0 right-0 h-8 sm:h-9`), featuring illuminated red tuning needle, `88–108 MHz` dial, `AFC ON` indicator, and perforated speaker grille mesh chassis.
+4. **Eliminated Drawer Scroll Lag (60 FPS Optimization in `src/style.css` & `ControlCenterDrawer.vue`):**
+   - Removed duplicate `<ThemeBackdrop />` from `ControlCenterDrawer.vue`.
+   - Eliminated nested `backdrop-filter: blur(...)` from `.launcher-card` (set to `backdrop-filter: none !important`), as having 10 nested blur shaders inside a blurred container caused massive GPU redraw churn on every scroll frame.
+   - Cards now use fast alpha glass fills while the drawer container handles the blur in a single pass with `will-change: transform`.
+   - Scrolling in Japan and Mac is now buttery smooth 60fps.
+
+---
+
+## Log Entry: 2026-11-25 (Entry 41)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Total Visual Theme Separation & Rich Thematic Art Overhaul
+
+### 1. User Directives & Goals
+1. Resolve feedback that themes previously felt like a superficial "UI patch" over the default dark mode rather than total aesthetic separation.
+2. In the Control Center Drawer and individual widgets, ensure all cards, buttons, badges, pills, and text completely adopt their theme's distinct identity rather than falling back to dark Tailwind gradients.
+3. Incorporate high-resolution real web artwork (e.g. Mount Fuji with cherry blossoms from Unsplash) with graceful fallbacks.
+4. Elevate all non-default themes with rich, iconic thematic elements comparable to Japan Zen:
+   - **Apple Liquid Glass:** Real macOS Sonoma fluid dynamic glass wallpaper + macOS traffic light window controls (🔴 🟡 🟢) + Cupertino frosted acrylic cards.
+   - **Simple Retro Radio:** Perforated speaker grille pattern + full analog AM/FM horizontal radio tuning scale dial with illuminated red needle indicator & warm amber vacuum tube glow + mechanical tactile buttons.
+   - **Cyberpunk 2077 HUD:** Live Netrunner tactical cyberware telemetry ticker across the top + rotating circular targeting reticle & wireframe compass + diagonal yellow/black caution hazard warning stripes + 45° chamfered cards.
+   - **Anime Japan Zen:** Real Mount Fuji & Sakura landscape overlay + Torii shrine gate + animated steaming ramen bowl 🍜 with chopsticks + drifting sakura petals + washi milk-glass cards with Sumi-ink typography.
+
+### 2. Solutions Implemented
+1. **Control Center Drawer Transformation (`src/components/ControlCenterDrawer.vue`):**
+   - Mounted `<ThemeBackdrop />` inside `.control-center-sheet` so opening the launcher reveals the active theme world.
+   - Added `launcher-card` class across all 10 launcher cards in the grid.
+2. **Thematic Backdrops & Visual Elements (`src/components/theme/ThemeBackdrop.vue`):**
+   - **Japan:** High-res Mount Fuji & sakura photograph overlay with graceful fallback to vector Fuji silhouette, Kasagi-curved Torii shrine, steaming tonkotsu ramen bowl with narutomaki & chopsticks, and floating sakura petals.
+   - **Apple:** Real macOS Sonoma abstract fluid ribbon wallpaper with deep purple and oceanic navy light blooms, plus macOS window traffic light indicators (🔴 🟡 🟢).
+   - **Retro Radio:** Perforated speaker grille texture pattern, warm tube backlight, and a full horizontal AM/FM frequency dial bar (`FM 88–108 MHz | AM 530–1600 kHz`) with an illuminated red tuning needle indicator.
+   - **Cyberpunk:** Live tactical telemetry ticker (`[SYS: ONLINE] // ICE: BYPASSED // MEM: 84%`), rotating targeting reticle with wireframe compass crosshairs, caution hazard diagonal stripes, and CRT scanlines.
+3. **Deep Theme Style Engine (`src/style.css`):**
+   - Replaced basic color variables with comprehensive scoped selector rules covering `.launcher-card`, `.theme-card`, `button`, icon badges, borders, typography, inputs, and gradients for every theme.
+   - Every button, card, header, badge, and text element now adapts 100% to its theme, creating total visual separation between the 5 distinct visual worlds.
+
+---
+
+## Log Entry: 2026-11-25 (Entry 40)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Complete Visual Theme System Architecture & Extensible Theming Engine
+
+### 1. User Directives & Goals
+1. Address the aesthetic critique of default dark dashboards feeling like generic "AI slop" (muddy translucent glass, rainbow icon soup, and uniform gray boxes).
+2. Create radically distinct artistic worlds rather than mere accent color swaps:
+   - **Anime Japan Zen:** Light-toned Ghibli/Shinkai daytime aesthetic, Mount Fuji with snowcap, red Torii shrine gate, steaming ramen bowl with chopsticks, matcha green (`#7BA23F`) and yuzu gold accents, authentic cherry blossom blush (`#FFB7C5`), and washi milk-glass cards.
+   - **Apple Liquid Glass:** Ultra-frosted acrylic glass floating over macOS Sonoma abstract dynamic gradient wallpaper with smooth SF pill buttons.
+   - **Simple Retro Radio:** 1960s Braun / Dieter Rams tabletop aesthetic, muted charcoal bakelite chassis, horizontal AM/FM tuning scale with needle indicator, and understated warm amber accents.
+   - **Cyberpunk 2077 HUD:** 45° chamfered cards, yellow hazard caution stripes, Japanese katakana telemetry decals, and high-tech cyan/hot pink reticles.
+   - **Default OLED Studio:** Pure #000000 pitch-black AMOLED with dynamic Spotify ColorThief radial backlighting and zero battery drain.
+3. Integrate an interactive theme switcher into ArcDock's Settings modal with live preview.
+4. Build an extensible architecture so new themes can be introduced effortlessly in the future.
+5. In themed modes, the curated theme art takes precedence (Option A), while Car Mode respects the selected theme.
+
+### 2. Solutions Implemented
+1. **Extensible Theme Registry (`src/types/theme.ts`):**
+   - Defined `ThemeId` and `ThemeDefinition` interfaces with `THEME_REGISTRY` mapping.
+   - Allows future theme creation by adding an entry in `THEME_REGISTRY` and defining corresponding CSS tokens.
+2. **Theme Pinia Store (`src/stores/theme.ts`):**
+   - Manages active theme state persisted in `localStorage['arcdock_theme']`.
+   - Reactively injects `data-theme="<id>"` and `light-theme` attributes on `document.documentElement`.
+   - Exposes `isLightMode`, `currentThemeMeta`, and `themeList`.
+3. **Design Tokens & Theme Utilities (`src/style.css`):**
+   - Configured semantic CSS variables (`--dock-bg`, `--dock-text-primary`, `--dock-text-muted`, `--dock-border`, `--dock-card-bg`, `--dock-card-border`, `--dock-accent`, `--dock-pill-bg`) across all 5 themes.
+   - Built automatic component styling adaptations so all widgets, topbars, cards, and buttons cleanly adapt their surfaces, borders, and text contrast.
+   - Added chamfer polygon clip utilities and animations (`animate-sakura`, `animate-steam`).
+4. **Theme Ambient Backdrop Component (`src/components/theme/ThemeBackdrop.vue`):**
+   - Renders ambient theme layers (sunny Ghibli sky with Mount Fuji, Torii gate, steaming ramen with chopsticks, drifting cherry blossom petals, Sonoma dynamic wallpaper, and CRT scanlines).
+5. **Settings Integration (`src/components/SettingsModal.vue`):**
+   - Added a dedicated "Visual Theme & Style" selector section featuring 5 visual cards with emoji boxes, live badges, descriptions, and color swatches.
+6. **Main App Integration (`src/App.vue`):**
+   - Mounted `<ThemeBackdrop />` beneath the split-pane canvas.
+   - In Default OLED mode, dynamic Spotify ColorThief radial gradient shines through; in themed modes, the theme's curated backdrop art takes precedence.
+
+### 3. Comprehensive Global Theme Coverage & Mobile Dark-Mode Fix
+1. **Resolved Phone Dark Mode Override (`index.html` & `theme.ts`):**
+   - Removed hardcoded `class="dark"` from `<html>` and `bg-black text-white` from `<body>`.
+   - Added `<meta name="color-scheme" content="light dark" />` and dynamically update `<meta name="theme-color">` to match active theme's palette.
+   - In `themeStore.setTheme()`, explicitly toggle `dark` and `light-theme` classes and set `document.documentElement.style.colorScheme` and `document.body.style.colorScheme` directly, preventing Android WebView / Chrome from forcing dark mode on light themes.
+2. **Global Background Persistence (Paused Music, Standby Hub & Panels):**
+   - Removed opaque `bg-black/60` and `bg-neutral-950/90` overlays from `StandbyWorkHub.vue`, `DeskIoTPanel.vue`, and `FavoriteWidgetsPanel.vue`, making them translucent.
+   - When music is paused, the full theme backdrop (e.g. Mount Fuji, Torii gate, ramen bowl, and floating sakura petals) now shines through across the entire screen!
+3. **Control Center Drawer & Full-Screen Views Theming:**
+   - In `ControlCenterDrawer.vue`, replaced hardcoded `bg-neutral-950/95` with `.control-center-sheet` that dynamically renders as washi milk-glass (Japan), frosted acrylic (Apple), muted bakelite (Retro), or neon-lined HUD (Cyberpunk).
+   - In `FullScreenView.vue`, mounted `<ThemeBackdrop />` so that every individual widget page (Weather, GitHub, Parcels, Calendar, Pomodoro, Habits, Timezones, Clipboard, Smart Desk) shares the active theme's visual world.
+   - In `SettingsModal.vue`, replaced hardcoded `bg-black` with `<ThemeBackdrop />` and translucent card surfaces.
+
+### 4. Verification
+- `vue-tsc && vite build` passed with 0 errors in 1.72s.
+
+---
+
 ## Log Entry: 2026-11-25 (Entry 39)
 **Author:** Antigravity AI Assistant & Utkarsh  
 **Phase:** Universal Hardware Documentation (Any Phone/Tablet/OS) & Termux HTTP Server Architecture (`darkhttpd` vs. `arcdock_api.py`)

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useDeliveryStore } from '@/stores/delivery';
+import { useDeliveryStore, type CourierInfo } from '@/stores/delivery';
 import {
   Plus,
   Trash2,
@@ -45,7 +45,7 @@ const getStageNumber = (status: string) => {
 };
 
 const getCourierName = (id: string) => {
-  return deliveryStore.carriers.find((c) => c.id === id)?.name || id.toUpperCase();
+  return deliveryStore.carriers.find((c: CourierInfo) => c.id === id)?.name || id.toUpperCase();
 };
 </script>
 
@@ -174,15 +174,29 @@ const getCourierName = (id: string) => {
     <!-- Active Packages List -->
     <div v-else class="space-y-4">
       <div
-        v-for="parcel in deliveryStore.parcels"
+        v-for="(parcel, index) in deliveryStore.parcels"
         :key="parcel.id"
-        class="p-5 rounded-3xl bg-neutral-900 border border-white/10 space-y-4"
+        class="p-5 rounded-3xl bg-neutral-900 border space-y-4 transition-all"
+        :class="deliveryStore.activeParcel?.id === parcel.id ? 'border-amber-500/50 ring-1 ring-amber-500/20 shadow-lg shadow-amber-500/5' : 'border-white/10'"
+        @click="deliveryStore.selectParcel(parcel.id)"
       >
         <!-- Package Header -->
         <div class="flex items-start justify-between gap-4">
           <div class="space-y-1">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="text-sm font-bold text-white">{{ parcel.title }}</span>
+              <span
+                v-if="index === 0"
+                class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-500/25"
+              >
+                Newest
+              </span>
+              <span
+                v-if="deliveryStore.activeParcel?.id === parcel.id"
+                class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30"
+              >
+                Featured on Main Screen
+              </span>
               <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-400/15 text-amber-300 border border-amber-400/25">
                 {{ getCourierName(parcel.courier) }}
               </span>
@@ -340,8 +354,14 @@ const getCourierName = (id: string) => {
                   class="w-1.5 h-1.5 rounded-full absolute -left-[4px] top-1.5"
                   :class="idx === 0 ? 'bg-emerald-400 ring-2 ring-emerald-400/30' : 'bg-neutral-600'"
                 />
-                <div class="font-semibold" :class="idx === 0 ? 'text-white' : 'text-neutral-300'">
-                  {{ cp.status }}
+                <div class="font-semibold flex items-center gap-1.5" :class="idx === 0 ? 'text-white' : 'text-neutral-300'">
+                  <span>{{ cp.status }}</span>
+                  <span
+                    v-if="idx === 0"
+                    class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/25"
+                  >
+                    Latest Checkpoint
+                  </span>
                 </div>
                 <div class="text-[11px] text-neutral-400 flex items-center gap-2 mt-0.5">
                   <span class="flex items-center gap-1">

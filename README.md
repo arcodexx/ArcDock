@@ -115,6 +115,30 @@ Configure your dock to turn on and display ArcDock automatically whenever powere
 
 ---
 
+## 🎨 Visual Themes & Aesthetic Worlds Engine
+
+ArcDock transforms beyond a standard dark dashboard into **5 curated artistic worlds** with custom backdrops, ambient lighting, typography, and card materials. The theme applies universally across all split panes, drawers, modal stations, and right-hand IoT panels:
+
+| Theme | Mood & Concept | Base Palette | Typography | Ambient Scenery & Backing |
+| :--- | :--- | :--- | :--- | :--- |
+| **Default OLED** | Baseline Pure Black | `#000000` • `#10B981` | Plus Jakarta Sans | Real-time dynamic Spotify album art radial backlighting via ColorThief |
+| **Anime Japan Zen** | Daylight Ghibli Morning | `#FFF5F8` • `#E84855` • `#7BA23F` | Noto Sans JP | Bundled high-res Mount Fuji photography, Chureito Pagoda, Torii gate, steaming ramen bowl 🍜, drifting Sakura petals |
+| **Apple Liquid Glass** | macOS Sonoma Pro | Deep Abstract Cyan/Purple | Plus Jakarta Sans | Specular acrylic blooms, Sonoma liquid wallpaper, neon icon rings, high-contrast white labels |
+| **Simple Retro Radio** | 1960s Dieter Rams Braun | `#141210` • `#D99B43` | Space Mono | Horizontal AM/FM glass tuning scale (`88–108 MHz`), illuminated red needle, bakelite chassis |
+| **Cyberpunk 2077 HUD** | Night City Netrunner | `#08080C` • `#FCEE0A` • `#00F0FF` | Chakra Petch | 45° chamfered cards, caution hazard stripes, rotating targeting reticle, CRT scanlines, Katakana decals |
+
+### ☀️ Mobile / OS Dark Mode Immunity
+Mobile browsers and WebViews (such as Chrome on Android and Fully Kiosk) enforce **"Auto Dark Mode for Web Contents"** by default when the host phone is in Dark Mode, which would normally invert and darken light themes.
+* ArcDock enforces **`color-scheme: only light !important;`** whenever a light theme is active, strictly adhering to the W3C Color Adjustment specification to instruct mobile browsers never to algorithmically invert or dim the page.
+* Dynamically manages `<meta name="color-scheme" content="only light">` and `<meta name="theme-color">` on the fly for 100% theme fidelity regardless of phone OS settings.
+
+### 🌑 AMOLED True-Black Screensaver & Ghost-Click Shield
+* **100% OLED Pixel Extinction:** The screensaver (`.oled-screensaver`) is strictly isolated from parent theme color rules and forced to pure `#000000` black, turning off pixels completely on OLED displays while idle.
+* **Theme Typography Inheritance:** Clock digits dynamically adopt the active theme's font family (`Noto Sans JP` in Japan mode, `Space Mono` in Retro mode, `Chakra Petch` in Cyberpunk mode) while preserving pitch-black backgrounds.
+* **Transient Touch-Shield (Zero Ghost Clicks):** When tapping anywhere to wake the dock, a transient 350ms invisible shield (`z-[250]`) intercepts and swallows trailing synthesized touch/click events, completely eliminating accidental button presses on underlying widgets.
+
+---
+
 ## 📱 Touch-First Ergonomics & Ambient Design
 
 ArcDock is designed specifically for finger interaction on physical touchscreens rather than desktop mouse clicks:
@@ -173,11 +197,18 @@ Tap the 🔄 icon in the top bar to open the **Dock Power & Restart Modal**:
 ## 🔧 Troubleshooting & Field Guide
 
 ### 1. Phone IP Changed on Wi-Fi
-If your router assigns a new IP address to the phone:
+If your router assigns a new IP address to the phone or the connection times out:
 ```bash
-npm run dock:ip <new-ip>
+# Check current IP setting:
+npm run dock:ip
+
+# Update phone IP address (e.g. 192.168.1.35):
+npm run dock:ip 192.168.1.35
+
+# Deploy to phone with SSH multiplexing (prompts for SSH password only once!):
 npm run deploy
 ```
+> **Tip:** `npm run deploy` automatically performs a pre-flight connectivity check. If the phone IP is unreachable, it halts before building and prints clear instructions with your exact change command. With OpenSSH `ControlMaster` multiplexing enabled, you enter your SSH password once per deploy session—assets, server scripts, and restart commands reuse the active session seamlessly with zero password re-prompts.
 
 ### 2. Stale Frontend / Code Updates Not Showing on Phone
 If you deploy new code but the phone screen still shows an older version:

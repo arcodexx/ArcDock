@@ -307,3 +307,81 @@
   - Status: *On Hold* until physical Zigbee / Wi-Fi room air quality sensor is acquired and integrated into Home Assistant.
   - Will connect to Home Assistant sensor domains (`sensor.*_co2`, `sensor.*_voc`, `sensor.*_humidity`).
   - Threshold alert styling: `< 800 ppm` (Fresh 🟢), `800 - 1400 ppm` (Elevated 🟡), `> 1400 ppm` (Ventilate Room / Brain Fog Alert 🔴).
+
+---
+
+## Phase 6: Visual Themes, Aesthetic Worlds & Mobile Hardware Hardening — [COMPLETED]
+
+### Step 6.1: Theme Engine Architecture & Design Tokens
+- [x] **Theme Registry (`src/types/theme.ts` & `src/stores/theme.ts`):**
+  - Type-safe `ThemeId` registry (`'default' | 'japan' | 'apple' | 'retro' | 'cyberpunk'`).
+  - Metadata definition: `id`, `name`, `emoji`, `tagline`, `tone` (`'dark' | 'light'`), `badgeBg`, `badgeText`, and swatch palettes.
+  - Persistent storage in `localStorage ('arcdock_theme')`.
+  - DOM attribute dispatcher `applyDomAttributes(themeId)` setting `[data-theme]`, `root.style.colorScheme`, and `#theme-color-meta`.
+- [x] **Universal CSS Custom Properties (`src/style.css`):**
+  - Established design tokens per theme: `--dock-bg`, `--dock-text-primary`, `--dock-text-muted`, `--dock-border`, `--dock-card-bg`, `--dock-card-border`, `--dock-card-radius`, `--dock-card-shadow`, `--dock-accent`, `--dock-font`.
+  - Font families: `Plus Jakarta Sans`, `Noto Sans JP`, `Space Mono`, and `Chakra Petch`.
+
+### Step 6.2: Curated Aesthetic Worlds Implementation
+- [x] **1. Baseline OLED (`default`):**
+  - Pure `#000000` true-black canvas with ColorThief dynamic album art backlighting.
+- [x] **2. Anime Japan Zen (`japan`):**
+  - Daylight Ghibli morning sky (`#FFF5F8` base with morning sky gradient).
+  - Bundled local high-res 1920x1077 photograph of Mount Fuji, Chureito Pagoda, and cherry blossoms (`public/assets/images/mount_fuji.jpg`) with automatic CDN fallback.
+  - Luminous washi milk-glass cards (`rgba(255, 255, 255, 0.88)` with `border: 1.5px solid rgba(255, 183, 197, 0.6)`).
+  - Traditional red Torii shrine gate, steaming ramen bowl with chopsticks 🍜, and drifting sakura petals.
+  - Sumi-e dark charcoal typography (`#2D3142`), Yuzu gold (`#F4A261`), and Matcha green (`#7BA23F`) active IoT states.
+- [x] **3. Apple Liquid Glass (`apple`):**
+  - macOS Sonoma dynamic fluid wallpaper with specular purple/cyan light blooms.
+  - Ultra-frosted acrylic glass surfaces with high-contrast text (`rgba(255, 255, 255, 0.85)`).
+  - Neon icon badge rings across Weather, GitHub, Parcels, Network, Calendar, and Pomodoro.
+- [x] **4. Simple Retro Radio (`retro`):**
+  - 1960s Dieter Rams / Braun tabletop radio styling.
+  - Charcoal bakelite chassis (`#141210`) with horizontal AM/FM glass tuning scale docked below topbar (`88–108 MHz`), illuminated red needle, and AFC ON indicator.
+  - High-contrast `#D99B43` warm amber drawer dismiss button and controls.
+- [x] **5. Cyberpunk 2077 HUD (`cyberpunk`):**
+  - Night City Netrunner HUD with 45° chamfered card polygons (`clip-path`).
+  - Caution hazard stripes, rotating targeting reticle, CRT scanlines, and Katakana decals.
+  - Tactical neon cyan (`#00F0FF`), hot pink (`#FF0055`), and Cyberpunk yellow (`#FCEE0A`).
+
+### Step 6.3: Mobile OS Dark Mode Immunity Architecture
+- [x] **`color-scheme: only light` Standard Enforced:**
+  - Solved Android Chrome and WebView "Auto Dark Mode for Web Contents" algorithmic inversion that darkened light themes on phones in dark mode.
+  - Dynamically updates `<meta id="color-scheme-meta" content="only light">` and sets CSS `color-scheme: only light !important;` on root, body, and app elements.
+  - Full theme fidelity regardless of host device OS theme setting.
+
+### Step 6.4: AMOLED True-Black Screensaver & Ghost-Click Shield
+- [x] **Strict Screensaver Pixel Extinction Isolation:**
+  - Added `.oled-screensaver` class and `:not(.oled-screensaver):not(.oled-screensaver *)` exemptions across all light mode overrides.
+  - Screensaver is guaranteed 100% `#000000` pitch black across all themes to extinguish OLED pixels while idle.
+  - Replaced Tailwind utility classes on flip flaps with explicit deep hex values (`#0E0E12` / `#1E1E26`).
+- [x] **Dynamic Theme Font Family Inheritance:**
+  - Clock face numbers and dates inherit active theme font family (`var(--dock-font)`):
+    - Japan: `Noto Sans JP`
+    - Retro Radio: `Space Mono`
+    - Cyberpunk: `Chakra Petch`
+    - Default & Apple: `Plus Jakarta Sans`
+- [x] **Transient Ghost-Click Prevention Shield:**
+  - Intercepts and swallows trailing touch/pointer click synthesis when waking the screensaver.
+  - 350ms invisible shield (`z-[250]`) in `App.vue` prevents accidental execution of underlying dock buttons.
+
+### Step 6.5: Performance & Scrolling Ergonomics
+- [x] **60 FPS Drawer Momentum Scrolling:**
+  - Stripped nested `backdrop-filter: blur(10px)` from launcher cards in scrolling lists.
+  - Cards use fast alpha fills, eliminating GPU compositor re-sampling during scroll.
+  - Native touch pan momentum with `overscroll-contain touch-pan-y` and `will-change: transform`.
+
+### Step 6.6: Field Hardening, Deploy Ergonomics & Live Logistics Ordering — [COMPLETED]
+- [x] **Dock Power Modal Landscape Screen Fit (`src/components/DockPowerModal.vue`):**
+  - Constrained modal container to `max-h-[94vh] flex flex-col overflow-hidden` with responsive landscape padding (`p-3.5 sm:p-5`).
+  - Added `flex-1 overflow-y-auto no-scrollbar` to actions container and streamlined card/button padding (`min-h-[38px] sm:min-h-[42px]`), guaranteeing zero screen clipping on 20:9 landscape smartphone displays.
+- [x] **SSH Multiplexing & Unreachable IP Guidance (`scripts/dock.sh`):**
+  - Configured OpenSSH connection multiplexing via `ControlMaster=auto`, `ControlPath=/tmp/arcdock-ssh-*.sock`, and `ControlPersist=120s`. Prompts for SSH password only once per deploy session; subsequent `scp` and `ssh` commands reuse the active socket.
+  - Clean socket teardown via shell trap on `EXIT`, `INT`, and `TERM`.
+  - Added pre-flight connectivity check: halts immediately with a clear, copy-pasteable `npm run dock:ip <new-ip>` instructional banner if the phone is unreachable via DHCP Wi-Fi changes.
+  - Added formatted status output when running `npm run dock:ip`.
+- [x] **Reverse-Chronological Parcel & Checkpoint Tracking Engine (`src/stores/delivery.ts`, `DeliveryView.vue`, `StandbyWorkHub.vue`, `ControlCenterDrawer.vue`):**
+  - Implemented `sortParcelsNewestFirst()` and timestamp indexing: newest parcel is always displayed first and defaults to the active parcel on the main desk dashboard.
+  - Implemented `sortEventsNewestFirst()` and `getEventTimestamp()`: carrier checkpoint history is sorted newest-to-oldest, ensuring the latest transit status (`"In transit bag added to trip"`) is at index 0 with the active green dot, while `"Order received"` is at the bottom.
+  - Retroactively normalizes saved packages in `localStorage` on app startup.
+  - Main dashboard and drawer now display the live transit checkpoint subtitle with matching green status indicators.

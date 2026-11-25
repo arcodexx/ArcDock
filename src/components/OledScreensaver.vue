@@ -109,12 +109,20 @@ onUnmounted(() => {
   if (minuteSyncTimeout) window.clearTimeout(minuteSyncTimeout);
   if (timer) window.clearInterval(timer);
 });
+
+const handleWake = (e: Event) => {
+  e.stopPropagation();
+  e.preventDefault();
+  emit('wake');
+};
 </script>
 
 <template>
   <div
-    @click="emit('wake')"
-    class="fixed inset-0 z-[100] bg-black text-white flex flex-col items-center justify-between p-6 sm:p-10 cursor-pointer select-none overflow-hidden transition-opacity duration-700"
+    @pointerdown.stop.prevent="handleWake"
+    @click.stop.prevent="handleWake"
+    class="oled-screensaver fixed inset-0 z-[100] bg-black text-white flex flex-col items-center justify-between p-6 sm:p-10 cursor-pointer select-none overflow-hidden transition-opacity duration-700"
+    style="background-color: #000000 !important; color: #FFFFFF !important;"
   >
     <!-- Top hint & Theme Switcher -->
     <!-- Top Status: Subtle Ambient Indicator -->
@@ -128,32 +136,32 @@ onUnmounted(() => {
 
     <!-- Center Display Area -->
     <div class="flex flex-col items-center text-center space-y-4 max-w-2xl px-4">
-      <!-- THEME 1: Minimalist Typography -->
+      <!-- THEME 1: Minimalist Typography (Inherits Active Theme Font & Styling) -->
       <template v-if="screensaverStore.theme === 'minimalist'">
-        <div class="text-7xl sm:text-8xl lg:text-9xl font-black tracking-tight text-white/90 font-sans drop-shadow-sm">
+        <div class="text-7xl sm:text-8xl lg:text-9xl font-black tracking-tight text-white/90 drop-shadow-sm font-inherit">
           {{ hours }}:{{ minutes }}
         </div>
-        <div class="text-sm sm:text-base lg:text-lg font-medium tracking-widest text-neutral-500 uppercase">
+        <div class="text-sm sm:text-base lg:text-lg font-medium tracking-widest text-neutral-500 uppercase font-inherit">
           {{ dateString }}
         </div>
       </template>
 
-      <!-- THEME 2: Retro Flip Clock -->
+      <!-- THEME 2: Retro Flip Clock (Explicit Deep OLED Black, never turned white) -->
       <template v-else-if="screensaverStore.theme === 'flip'">
         <div class="flex items-center gap-3 sm:gap-6 font-mono font-bold">
           <!-- Hours Flap -->
-          <div class="relative w-28 sm:w-36 h-28 sm:h-36 bg-neutral-900 border border-neutral-800 rounded-2xl flex items-center justify-center text-5xl sm:text-7xl text-white shadow-2xl overflow-hidden">
+          <div class="relative w-28 sm:w-36 h-28 sm:h-36 bg-[#0E0E12] border border-[#1E1E26] rounded-2xl flex items-center justify-center text-5xl sm:text-7xl text-white shadow-2xl overflow-hidden">
             <div class="absolute inset-x-0 top-1/2 h-[1px] bg-black/80 z-10"></div>
             <span>{{ hours }}</span>
           </div>
           <span class="text-4xl sm:text-6xl text-neutral-600 font-light">:</span>
           <!-- Minutes Flap -->
-          <div class="relative w-28 sm:w-36 h-28 sm:h-36 bg-neutral-900 border border-neutral-800 rounded-2xl flex items-center justify-center text-5xl sm:text-7xl text-white shadow-2xl overflow-hidden">
+          <div class="relative w-28 sm:w-36 h-28 sm:h-36 bg-[#0E0E12] border border-[#1E1E26] rounded-2xl flex items-center justify-center text-5xl sm:text-7xl text-white shadow-2xl overflow-hidden">
             <div class="absolute inset-x-0 top-1/2 h-[1px] bg-black/80 z-10"></div>
             <span>{{ minutes }}</span>
           </div>
         </div>
-        <div class="text-sm sm:text-base font-medium tracking-widest text-neutral-500 uppercase">
+        <div class="text-sm sm:text-base font-medium tracking-widest text-neutral-500 uppercase font-inherit">
           {{ dateString }}
         </div>
       </template>
@@ -201,7 +209,7 @@ onUnmounted(() => {
       <!-- Daily Stoic / Mindset Quote (Zero widget slot penalty, dimmed text) -->
       <div
         @click.stop="screensaverStore.nextQuote"
-        class="mt-4 pt-3 border-t border-neutral-900/60 max-w-lg cursor-pointer hover:text-neutral-400 transition-colors"
+        class="mt-4 pt-3 border-t border-[#1C1C24] max-w-lg cursor-pointer hover:text-neutral-400 transition-colors"
         title="Tap to cycle quote"
       >
         <p class="text-xs sm:text-sm text-neutral-500 font-serif italic tracking-wide leading-relaxed">
@@ -212,10 +220,10 @@ onUnmounted(() => {
         </span>
       </div>
 
-      <!-- Subtle Paused Track Indicator (if track exists) -->
+      <!-- Subtle Paused Track Indicator (if track exists, true black chip) -->
       <div
         v-if="spotify.currentTrack"
-        class="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-neutral-950 border border-neutral-900 text-neutral-400 text-xs"
+        class="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0E0E12] border border-[#1E1E26] text-neutral-400 text-xs font-inherit"
       >
         <Music class="w-3.5 h-3.5 text-neutral-500" />
         <span class="max-w-[240px] truncate font-medium">

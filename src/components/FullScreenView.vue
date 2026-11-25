@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, X, Star, AlertTriangle } from 'lucide-vue-next';
 import { useFavoritesStore, type WidgetType } from '@/stores/favorites';
+import ThemeBackdrop from '@/components/theme/ThemeBackdrop.vue';
 
 const props = defineProps<{
   title: string;
@@ -22,9 +23,18 @@ const handleToggleFav = () => {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-[100] w-screen h-screen bg-black flex flex-col select-none overflow-hidden animate-in fade-in duration-150">
+  <div
+    class="fixed inset-0 z-[100] w-screen h-screen flex flex-col select-none overflow-hidden animate-in fade-in duration-150 relative"
+    style="background-color: var(--dock-bg);"
+  >
+    <!-- Common Ambient Theme Backdrop (Mount Fuji, Apple, Retro, Cyberpunk) -->
+    <ThemeBackdrop />
+
     <!-- Top Navigation Header -->
-    <header class="h-14 px-4 sm:px-6 border-b border-white/10 flex items-center justify-between shrink-0 bg-neutral-950">
+    <header
+      class="h-14 px-4 sm:px-6 border-b flex items-center justify-between shrink-0 relative z-10 backdrop-blur-md transition-colors"
+      style="background-color: var(--dock-card-bg); border-color: var(--dock-border); color: var(--dock-text-primary);"
+    >
       <div class="flex items-center gap-3 min-w-0">
         <button
           @click="emit('close')"
@@ -83,7 +93,7 @@ const handleToggleFav = () => {
     </div>
 
     <!-- Content Slot with Clean Scrolling -->
-    <main class="flex-1 overflow-y-auto p-4 sm:p-6 no-scrollbar">
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6 no-scrollbar relative z-10">
       <slot />
     </main>
   </div>

@@ -92,12 +92,20 @@ ArcDock in **Car Mode** serves as a handy passenger remote. Anyone in the car ca
 ### Subsystem 1: Frontend ("The Glass")
 * **Stack:** Vue 3 (Composition API, `<script setup>`), TypeScript, Pinia, Tailwind CSS.
 * **Layout Constraints:** Locked strictly to landscape (`100vw x 100vh`, fixed viewport, `overflow: hidden`, `user-select: none`).
-* **Visual Theme:**
-  * Base: Pitch black `#000000` and dark slate `#121212`.
-  * Dynamic Ambient Backing: Real-time dominant color extraction from current album art using `colorthief`. Rendered via smooth radial CSS gradients on `#app`.
-* **AMOLED Protection Implementation (`useAmoledProtection.ts`):**
+* **Visual Theme Engine (`src/stores/theme.ts`, `src/types/theme.ts`, `src/style.css`):**
+  * 5 Curated Artistic Worlds:
+    1. `default`: Baseline Pure OLED Black with ColorThief real-time album art backlighting.
+    2. `japan`: Anime Japan Zen daylight Ghibli aesthetic (`#FFF5F8`), bundled 1920x1077 Mount Fuji & Chureito Pagoda photography, Torii gate, steaming ramen bowl 🍜, drifting cherry blossom petals, sumi-ink typography (`#2D3142`), Yuzu gold & Matcha green accents.
+    3. `apple`: macOS Sonoma liquid acrylic glass with fluid wallpaper and neon icon rings.
+    4. `retro`: 1960s Dieter Rams Braun tabletop radio with horizontal AM/FM dial (`88–108 MHz`), red needle, and warm amber accents (`#D99B43`).
+    5. `cyberpunk`: Night City Netrunner HUD with 45° chamfered cards, targeting reticle, CRT scanlines, and neon cyan/yellow/pink palette.
+  * **Phone Dark Mode Immunity:** Enforces `color-scheme: only light !important;` on light themes to bypass Android Chrome/WebView Auto-Dark Mode algorithmic inversion.
+* **AMOLED Protection & Screensaver Architecture (`useAmoledProtection.ts` & `OledScreensaver.vue`):**
   * Tracks touch/pointer/mouse events.
-  * When paused/idle for > 5 minutes, activates `<OledScreensaver />` (true `#000000` background with drifting digital clock). Any tap wakes the UI instantly.
+  * When paused/idle for > 5 minutes, activates `<OledScreensaver />`.
+  * **True-Black Pixel Extinction:** Strictly isolated from theme overrides; forces pure `#000000` black in all themes to extinguish OLED pixels while idle.
+  * **Theme Font Inheritance:** Clock digits dynamically adopt the active theme's font family (`Noto Sans JP`, `Space Mono`, `Chakra Petch`, `Plus Jakarta Sans`).
+  * **Transient Ghost-Click Shield:** Raises an invisible shield (`z-[250]`) for 350ms upon screensaver wake, swallowing trailing synthesized touch events to eliminate accidental button presses on underlying widgets.
   * Every 10 minutes, applies a subtle offset `translate(Xpx, Ypx)` between -2px and +2px to the root container.
 
 ---
@@ -509,6 +517,32 @@ Rather than cramming API keys and city searches into a distant centralized setti
 * **Status:** On hold pending acquisition of physical Zigbee/Wi-Fi air sensor.
 * **Entity Mapping:** Connects to Home Assistant `sensor.*_co2`, `sensor.*_voc`.
 * **Visual Thresholds:** `< 800 ppm` (Fresh 🟢), `800–1400 ppm` (Elevated 🟡), `> 1400 ppm` (Ventilate Room 🔴).
+
+---
+
+### Subsystem 6: Visual Themes, Mobile OS Hardening & Deployment Multiplexing (Phase 6)
+
+#### 1. Curated Visual Worlds Engine (`theme.ts` & `ThemeBackdrop.vue`)
+* **Dynamic Material Themes:** Beyond basic dark mode, ArcDock includes 5 curated visual themes:
+  1. **Default OLED:** Pure `#000000` canvas with ColorThief dynamic album art radial lighting.
+  2. **Anime Japan Zen:** Daylight Ghibli morning atmosphere with local high-res photography of Mount Fuji, Chureito Pagoda, Torii shrine gate, steaming ramen bowl, drifting Sakura petals, and washi glass cards.
+  3. **Apple Liquid Glass:** macOS Sonoma dynamic fluid wallpaper, specular light blooms, and high-contrast acrylic panels.
+  4. **Simple Retro Radio:** 1960s Dieter Rams / Braun tabletop radio with horizontal AM/FM glass scale (`88–108 MHz`), illuminated red tuning needle, and warm amber controls.
+  5. **Cyberpunk 2077 HUD:** Night City Netrunner HUD with 45° chamfered card polygons (`clip-path`), caution hazard stripes, rotating targeting reticle, CRT scanlines, and Katakana decals.
+* **Mobile OS Dark Mode Immunity:** Enforces `color-scheme: only light !important;` and dynamic `<meta id="color-scheme-meta" content="only light">` when a light theme is active, preventing Android WebViews from forcibly inverting the page.
+
+#### 2. AMOLED True-Black Screensaver & Ghost-Click Shield (`OledScreensaver.vue`)
+* **OLED Pixel Extinction Isolation:** All light mode rules strictly exclude `.oled-screensaver`, guaranteeing `#000000` true black to power off OLED pixels.
+* **Theme Font Inheritance:** Clock digits dynamically adopt the active theme's font family (`Noto Sans JP`, `Space Mono`, `Chakra Petch`, `Plus Jakarta Sans`) while keeping backgrounds completely off.
+* **Ghost-Click Prevention Shield:** A transient 350ms invisible shield (`z-[250]`) intercepts and swallows trailing synthesized touch events when waking the screensaver, preventing accidental button triggers.
+
+#### 3. OpenSSH Multiplexing & Deployment CLI (`scripts/dock.sh`)
+* **ControlMaster Session Re-use:** Uses OpenSSH `ControlMaster=auto`, `ControlPath=/tmp/arcdock-ssh-*.sock`, and `ControlPersist=120s`. The user authenticates once with their SSH password; subsequent `scp` transfers and remote restart commands reuse the active socket without re-prompting. Clean teardown via shell trap.
+* **Pre-flight Connectivity Check:** Verifies port 8022 before initiating builds. If unreachable via DHCP Wi-Fi lease changes, outputs an actionable banner with `npm run dock:ip <new-ip>`.
+
+#### 4. Reverse-Chronological Parcel Logistics Engine (`delivery.ts`)
+* **Newest-First Parcel Ordering:** Parcels are ordered with the newest shipment at index 0 (`parcels[0]`), displayed by default on the main desk dashboard and in Control Center.
+* **Checkpoint Timeline Sorting:** Automatic timestamp parser (`getEventTimestamp`) and status classifier (`sortEventsNewestFirst`) place the latest transit checkpoint (`"In transit bag added to trip"`) at index 0 with the active green dot, cascading down to the earliest event (`"Order received"`) at the bottom.
 
 ---
 

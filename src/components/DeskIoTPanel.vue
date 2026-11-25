@@ -92,7 +92,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <aside class="h-full w-full flex flex-col bg-neutral-950/90 border-l border-white/10 select-none overflow-hidden">
+  <aside class="h-full w-full flex flex-col bg-black/20 backdrop-blur-sm border-l border-white/10 select-none overflow-hidden">
     <!-- Panel Header: Uncluttered Minimal Toolbar (Zero Redundant Title Text) -->
     <header class="px-2.5 py-1.5 border-b border-white/5 flex items-center justify-between shrink-0 bg-black/60 gap-1.5">
       <!-- Left: Smart Desk Label + Status Indicator -->

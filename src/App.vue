@@ -30,8 +30,10 @@ import TimezoneView from '@/components/views/TimezoneView.vue';
 import ClipboardView from '@/components/views/ClipboardView.vue';
 import FavoriteWidgetsPanel from '@/components/FavoriteWidgetsPanel.vue';
 import StandbyWorkHub from '@/components/hub/StandbyWorkHub.vue';
+import ThemeBackdrop from '@/components/theme/ThemeBackdrop.vue';
 import { useClipboardStore } from '@/stores/clipboard';
 import { useScreensaverStore } from '@/stores/screensaver';
+import { useThemeStore } from '@/stores/theme';
 import { Radio, Clipboard } from 'lucide-vue-next';
 
 const spotify = useSpotifyStore();
@@ -39,6 +41,7 @@ const networkStore = useNetworkStore();
 const ha = useHomeAssistantStore();
 const clipboardStore = useClipboardStore();
 const screensaverStore = useScreensaverStore();
+const themeStore = useThemeStore();
 
 onMounted(() => {
   clipboardStore.startPolling();
@@ -135,9 +138,16 @@ const closeFullScreen = () => {
   activeFullScreen.value = null;
 };
 
+const isWakingShieldActive = ref(false);
+
 const handleScreensaverWake = () => {
   screensaverStore.closePreview();
   wakeUp();
+  // Swallow trailing touch/click events for 350ms to prevent ghost clicks on underlying dock buttons
+  isWakingShieldActive.value = true;
+  setTimeout(() => {
+    isWakingShieldActive.value = false;
+  }, 350);
 };
 
 const getFullScreenMeta = computed(() => {
@@ -161,14 +171,25 @@ const handleKeyDown = (e: KeyboardEvent) => {
 };
 
 const backgroundGradientStyle = computed(() => {
-  if (spotify.dominantColors?.gradientCss) {
+  // Japan Light Theme: Explicit light morning sky canvas so dark default never shows through
+  if (themeStore.currentTheme === 'japan') {
     return {
-      background: spotify.dominantColors.gradientCss,
+      background: 'linear-gradient(180deg, #BAE0F5 0%, #D8ECF8 40%, #FFF0F3 80%, #FFF5F8 100%)',
     };
   }
-  return {
-    background: 'radial-gradient(circle at 20% 30%, rgba(30, 32, 38, 0.6) 0%, rgba(12, 13, 15, 0.95) 70%, #000000 100%)',
-  };
+  // Option A: In Default OLED mode, dynamic album art backlighting is used.
+  if (themeStore.currentTheme === 'default') {
+    if (spotify.dominantColors?.gradientCss) {
+      return {
+        background: spotify.dominantColors.gradientCss,
+      };
+    }
+    return {
+      background: 'radial-gradient(circle at 20% 30%, rgba(30, 32, 38, 0.6) 0%, rgba(12, 13, 15, 0.95) 70%, #000000 100%)',
+    };
+  }
+  // In art-themed modes, the curated theme backdrop takes precedence
+  return {};
 });
 
 onMounted(async () => {
@@ -188,12 +209,16 @@ onUnmounted(() => {
 
 <template>
   <main
-    class="w-screen h-screen overflow-hidden flex flex-col relative bg-black select-none transition-colors duration-1000"
+    class="w-screen h-screen overflow-hidden flex flex-col relative select-none transition-colors duration-500"
+    :data-theme="themeStore.currentTheme"
     :style="{
       ...backgroundGradientStyle,
       transform: `translate3d(${pixelShift.x}px, ${pixelShift.y}px, 0)`,
     }"
   >
+    <!-- Ambient Themed Backdrop Layer -->
+    <ThemeBackdrop />
+
     <!-- Top System Bar: Operational Mode + Grab Handle for Control Center + Settings -->
     <TopBar
       :mode="mode"
@@ -330,5 +355,16 @@ onUnmounted(() => {
 
     <!-- OLED True-Black Screensaver (Ambient Clock) -->
     <OledScreensaver v-if="isSleeping || screensaverStore.isPreviewing" @wake="handleScreensaverWake" />
+
+    <!-- Ghost Click Prevention Shield: Blocks accidental touch-through to underlying dock buttons on wake -->
+    <div
+      v-if="isWakingShieldActive"
+      class="fixed inset-0 z-[250] bg-transparent cursor-default pointer-events-auto select-none"
+      @click.stop.prevent
+      @pointerdown.stop.prevent
+      @pointerup.stop.prevent
+      @touchstart.stop.prevent
+      @touchend.stop.prevent
+    />
   </main>
 </template>

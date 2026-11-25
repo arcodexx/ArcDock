@@ -1,10 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700;800&family=Noto+Sans+JP:wght@400;500;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* =========================================================================
+   THEME DESIGN TOKENS
+   ========================================================================= */
+
+/* 1. DEFAULT OLED (BASELINE PURE BLACK) */
+:root,
+[data-theme="default"] {
   color-scheme: dark;
+  --dock-bg: #000000;
+  --dock-text-primary: #FFFFFF;
+  --dock-text-muted: #A1A1AA;
+  --dock-border: #27272A;
+  --dock-card-bg: rgba(9, 9, 11, 0.95);
+  --dock-card-border: #27272A;
+  --dock-card-radius: 1rem;
+  --dock-card-shadow: none;
+  --dock-card-backdrop: none;
+  --dock-recessed-bg: #000000;
+  --dock-recessed-border: #18181B;
+  --dock-accent: #10B981;
+  --dock-accent-text: #000000;
+  --dock-pill-bg: rgba(255, 255, 255, 0.05);
+  --dock-pill-border: rgba(255, 255, 255, 0.1);
+  --dock-font: 'Plus Jakarta Sans', -apple-system, sans-serif;
 }
+
+/* 2. ANIME JAPAN ZEN (LIGHT-TONED GHIBLI DAYLIGHT) */
+[data-theme="japan"] {
+  color-scheme: light;
+  --dock-bg: #FFF5F8;
+  --dock-text-primary: #2D3142;
+  --dock-text-muted: #5C6274;
+  --dock-border: rgba(255, 183, 197, 0.65);
+  --dock-card-bg: rgba(255, 255, 255, 0.94);
+  --dock-card-border: rgba(255, 183, 197, 0.65);
+  --dock-card-radius: 1.25rem;
+  --dock-card-shadow: 0 10px 28px rgba(186, 150, 160, 0.22);
+  --dock-card-backdrop: none;
+  --dock-recessed-bg: rgba(248, 244, 246, 0.96);
+  --dock-recessed-border: rgba(255, 183, 197, 0.5);
+  --dock-accent: #7BA23F; /* Matcha Green */
+  --dock-accent-text: #FFFFFF;
+  --dock-pill-bg: rgba(255, 255, 255, 0.85);
+  --dock-pill-border: rgba(255, 183, 197, 0.6);
+  --dock-font: 'Noto Sans JP', 'Plus Jakarta Sans', sans-serif;
+}
+
+/* 3. APPLE LIQUID GLASS (MACOS SONOMA) */
+[data-theme="apple"] {
+  color-scheme: dark;
+  --dock-bg: transparent;
+  --dock-text-primary: #FFFFFF;
+  --dock-text-muted: #CBD5E1;
+  --dock-border: rgba(255, 255, 255, 0.16);
+  --dock-card-bg: rgba(255, 255, 255, 0.08);
+  --dock-card-border: rgba(255, 255, 255, 0.18);
+  --dock-card-radius: 1.5rem;
+  --dock-card-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  --dock-card-backdrop: blur(28px);
+  --dock-recessed-bg: rgba(0, 0, 0, 0.3);
+  --dock-recessed-border: rgba(255, 255, 255, 0.1);
+  --dock-accent: #38BDF8; /* Glacier Blue */
+  --dock-accent-text: #000000;
+  --dock-pill-bg: rgba(255, 255, 255, 0.12);
+  --dock-pill-border: rgba(255, 255, 255, 0.2);
+  --dock-font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+}
+
+/* 4. SIMPLE RETRO RADIO (1960s BRAUN TABLETOP) */
+[data-theme="retro"] {
+  color-scheme: dark;
+  --dock-bg: #141210;
+  --dock-text-primary: #FAF5EE;
+  --dock-text-muted: #A89886;
+  --dock-border: #38322B;
+  --dock-card-bg: #1E1B18;
+  --dock-card-border: #38322B;
+  --dock-card-radius: 0.75rem;
+  --dock-card-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --dock-card-backdrop: none;
+  --dock-recessed-bg: #141210;
+  --dock-recessed-border: #2B2520;
+  --dock-accent: #D99B43; /* Subdued Vintage Amber */
+  --dock-accent-text: #000000;
+  --dock-pill-bg: #191613;
+  --dock-pill-border: #38322B;
+  --dock-font: 'Space Mono', monospace;
+}
+
+/* 5. CYBERPUNK 2077 HUD */
+[data-theme="cyberpunk"] {
+  color-scheme: dark;
+  --dock-bg: #08080C;
+  --dock-text-primary: #FFFFFF;
+  --dock-text-muted: #00F0FF;
+  --dock-border: #FF0055;
+  --dock-card-bg: #0E0E14;
+  --dock-card-border: rgba(0, 240, 255, 0.6);
+  --dock-card-radius: 0;
+  --dock-card-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+  --dock-card-backdrop: none;
+  --dock-recessed-bg: #050508;
+  --dock-recessed-border: rgba(255, 0, 85, 0.5);
+  --dock-accent: #FCEE0A; /* Cyberpunk Yellow */
+  --dock-accent-text: #000000;
+  --dock-pill-bg: #050508;
+  --dock-pill-border: #00F0FF;
+  --dock-font: 'Chakra Petch', monospace;
+}
+
+/* =========================================================================
+   BASE LAYOUT
+   ========================================================================= */
 
 html, body, #app {
   width: 100vw;
@@ -12,8 +124,9 @@ html, body, #app {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background-color: #000000;
-  color: #ffffff;
+  background-color: var(--dock-bg, #000000);
+  color: var(--dock-text-primary, #ffffff);
+  font-family: var(--dock-font, 'Plus Jakarta Sans', sans-serif);
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -29,6 +142,574 @@ html, body, #app {
 * {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* =========================================================================
+   COMPONENT OVERRIDES BY THEME
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   1. ANIME JAPAN ZEN (LIGHT WASHI PAPER, SUMI-E INK, SAKURA PINK & TORII RED)
+   ------------------------------------------------------------------------- */
+:root[data-theme="japan"],
+html[data-theme="japan"],
+body[data-theme="japan"],
+main[data-theme="japan"],
+[data-theme="japan"] #app,
+[data-theme="japan"] main,
+.light-theme {
+  color-scheme: only light !important;
+  background-color: #FFF5F8 !important;
+  color: #2D3142 !important;
+}
+
+/* Semi-transparent Modal Scrim / Dim Overlay for Drawer & Popups in Japan Mode (EXCLUDING Screensaver) */
+[data-theme="japan"] .fixed.inset-0[class*="bg-black"]:not(.oled-screensaver),
+[data-theme="japan"] .absolute.inset-0[class*="bg-black"]:not(.oled-screensaver) {
+  background-color: rgba(45, 49, 66, 0.35) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+/* AMOLED Screensaver MUST ALWAYS be pure pitch black in ALL themes to turn off OLED pixels */
+.oled-screensaver,
+[data-theme] .oled-screensaver,
+[data-theme="japan"] .oled-screensaver {
+  background-color: #000000 !important;
+  background-image: none !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #FFFFFF !important;
+  color-scheme: dark !important;
+}
+
+[data-theme="japan"] .oled-screensaver [class*="text-"] {
+  color: #FFFFFF !important;
+}
+[data-theme="japan"] .oled-screensaver .text-neutral-500,
+[data-theme="japan"] .oled-screensaver .text-neutral-600 {
+  color: #737373 !important;
+}
+[data-theme="japan"] .oled-screensaver .text-neutral-800\/60 {
+  color: rgba(38, 38, 38, 0.6) !important;
+}
+
+/* Top System Bar & Subheaders in Japan Mode */
+[data-theme="japan"] header {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba(255, 183, 197, 0.6) !important;
+  color: #2D3142 !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+/* Right SplitPane IoT / Favorites Panel Container */
+[data-theme="japan"] aside {
+  background-color: rgba(255, 255, 255, 0.75) !important;
+  border-color: rgba(255, 183, 197, 0.5) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+/* Universal Light Washi Surfaces for all Panels, Drawers, Cards, Modals & Tiles */
+[data-theme="japan"] .control-center-sheet,
+[data-theme="japan"] .launcher-card,
+[data-theme="japan"] .theme-card,
+[data-theme="japan"] [class*="bg-neutral"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="bg-surface"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="-950"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="-900"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="-800"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="bg-black\/"]:not(.fixed):not(.absolute):not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="bg-white\/5"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="bg-white\/10"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="bg-white\/15"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="bg-white\/20"]:not(.oled-screensaver):not(.oled-screensaver *) {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  background-image: none !important;
+  border-color: rgba(255, 183, 197, 0.6) !important;
+  color: #2D3142 !important;
+  box-shadow: 0 4px 16px rgba(255, 183, 197, 0.2), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Launcher Cards inside Drawer - NO nested backdrop blur for silky 60fps scrolling */
+.launcher-card,
+.control-center-sheet .launcher-card,
+[data-theme="japan"] .control-center-sheet .launcher-card,
+[data-theme="japan"] .launcher-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Control Center Drawer Sheet Specific Base */
+[data-theme="japan"] .control-center-sheet {
+  background-color: rgba(255, 246, 249, 0.94) !important;
+  border-color: rgba(255, 183, 197, 0.8) !important;
+  box-shadow: 0 20px 50px rgba(186, 150, 160, 0.3) !important;
+  will-change: transform;
+}
+
+/* All Buttons and Interactive Controls */
+[data-theme="japan"] button:not(.bg-spotify-green) {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(255, 183, 197, 0.65) !important;
+  color: #2D3142 !important;
+  box-shadow: 0 1px 4px rgba(186, 150, 160, 0.15) !important;
+}
+
+[data-theme="japan"] button:not(.bg-spotify-green):hover,
+[data-theme="japan"] [class*="bg-neutral"]:hover,
+[data-theme="japan"] [class*="bg-white\/"]:hover {
+  background-color: #FFF0F3 !important;
+  border-color: #FFB7C5 !important;
+}
+
+/* Active State for IoT Cards (Lights On, AC Active) in Japan Mode */
+[data-theme="japan"] .bg-amber-500\/15,
+[data-theme="japan"] .bg-cyan-500\/15,
+[data-theme="japan"] .bg-cyan-500\/10,
+[data-theme="japan"] .bg-indigo-500\/15,
+[data-theme="japan"] .bg-emerald-500\/15 {
+  background-color: #FFF8EB !important;
+  border-color: #F4A261 !important;
+  color: #2D3142 !important;
+}
+
+[data-theme="japan"] .bg-amber-400 {
+  background-color: #F4A261 !important;
+  color: #FFFFFF !important;
+}
+
+/* Icon Badges and Pill Containers in Japan Mode */
+[data-theme="japan"] .launcher-card .w-8.h-8,
+[data-theme="japan"] .theme-card .w-8.h-8,
+[data-theme="japan"] .theme-card .w-7.h-7,
+[data-theme="japan"] [class*="bg-"][class*="-500/20"],
+[data-theme="japan"] [class*="bg-"][class*="-500/15"],
+[data-theme="japan"] .w-8.h-8.bg-white\/5,
+[data-theme="japan"] .w-7.h-7.bg-white\/5 {
+  background-color: rgba(255, 183, 197, 0.35) !important;
+  color: #E84855 !important;
+  border: 1px solid rgba(255, 183, 197, 0.5) !important;
+}
+
+/* TopBar Grab Pill in Japan Mode */
+[data-theme="japan"] .w-7.h-1.bg-white\/20 {
+  background-color: rgba(255, 183, 197, 0.8) !important;
+}
+
+/* Dismiss Button in Japan Mode */
+[data-theme="japan"] .drawer-dismiss-btn {
+  background-color: rgba(255, 183, 197, 0.35) !important;
+  border-color: rgba(255, 183, 197, 0.8) !important;
+  color: #2D3142 !important;
+}
+[data-theme="japan"] .drawer-dismiss-btn:hover {
+  background-color: #FFF0F3 !important;
+  border-color: #FFB7C5 !important;
+}
+
+/* Typography Hierarchy in Japan Mode: Crisp Dark Sumi-e Ink (Excluding Screensaver) */
+[data-theme="japan"] [class*="text-white"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="text-neutral-100"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="text-neutral-200"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="text-neutral-300"]:not(.oled-screensaver):not(.oled-screensaver *) {
+  color: #2D3142 !important;
+}
+
+[data-theme="japan"] [class*="text-neutral-400"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="text-slate-300"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="text-slate-400"]:not(.oled-screensaver):not(.oled-screensaver *) {
+  color: #5C6274 !important;
+}
+
+[data-theme="japan"] [class*="text-neutral-500"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="text-neutral-600"]:not(.oled-screensaver):not(.oled-screensaver *),
+[data-theme="japan"] [class*="text-slate-500"]:not(.oled-screensaver):not(.oled-screensaver *) {
+  color: #7C8294 !important;
+}
+
+/* Thematic Color Accents in Japan Mode */
+[data-theme="japan"] .text-sky-400,
+[data-theme="japan"] .text-purple-400,
+[data-theme="japan"] .text-blue-400,
+[data-theme="japan"] .text-cyan-400,
+[data-theme="japan"] .text-rose-400 {
+  color: #E84855 !important; /* Torii Red */
+}
+
+[data-theme="japan"] .text-emerald-400,
+[data-theme="japan"] .text-emerald-300 {
+  color: #7BA23F !important; /* Matcha Green */
+}
+
+[data-theme="japan"] .text-amber-400,
+[data-theme="japan"] .text-amber-300,
+[data-theme="japan"] .text-orange-400 {
+  color: #F4A261 !important; /* Yuzu Gold */
+}
+
+[data-theme="japan"] .fill-amber-400 {
+  fill: #F4A261 !important;
+  color: #F4A261 !important;
+}
+
+/* Borders in Japan Mode */
+[data-theme="japan"] [class*="border-white"],
+[data-theme="japan"] [class*="border-neutral"] {
+  border-color: rgba(255, 183, 197, 0.55) !important;
+}
+
+/* Music Playback Progress Bar in Japan Mode */
+[data-theme="japan"] .h-2.w-full.bg-white\/15 {
+  background-color: rgba(255, 183, 197, 0.4) !important;
+}
+[data-theme="japan"] .h-full.bg-white {
+  background-color: #E84855 !important;
+}
+
+/* Form Controls & Inputs in Japan Mode */
+[data-theme="japan"] input,
+[data-theme="japan"] select,
+[data-theme="japan"] textarea {
+  background-color: rgba(248, 244, 246, 0.95) !important;
+  border-color: rgba(255, 183, 197, 0.65) !important;
+  color: #2D3142 !important;
+}
+
+[data-theme="japan"] input::placeholder,
+[data-theme="japan"] textarea::placeholder {
+  color: #8C92A4 !important;
+}
+
+[data-theme="japan"] .bg-spotify-green {
+  background-color: #E84855 !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="japan"] .text-spotify-green {
+  color: #E84855 !important;
+}
+
+
+/* -------------------------------------------------------------------------
+   2. APPLE LIQUID GLASS (MACOS SONOMA FROSTED ACRYLIC & HIGH-CONTRAST LABELS)
+   ------------------------------------------------------------------------- */
+[data-theme="apple"] .control-center-sheet {
+  background-color: rgba(18, 18, 30, 0.88) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6) !important;
+  will-change: transform;
+}
+
+/* Launcher Cards & Standby Cards - NO nested backdrop blur for 60fps smooth scrolling */
+[data-theme="apple"] .launcher-card,
+[data-theme="apple"] .theme-card,
+[data-theme="apple"] [class*="from-"][class*="-950"],
+[data-theme="apple"] .bg-neutral-900,
+[data-theme="apple"] .bg-neutral-900\/80,
+[data-theme="apple"] .bg-neutral-900\/90,
+[data-theme="apple"] .bg-neutral-900\/95,
+[data-theme="apple"] .bg-surface-50,
+[data-theme="apple"] .bg-surface-100,
+[data-theme="apple"] .bg-surface-200,
+[data-theme="apple"] .bg-surface-300,
+[data-theme="apple"] .bg-black\/60,
+[data-theme="apple"] .bg-black\/80 {
+  background: rgba(255, 255, 255, 0.09) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+  border-radius: 1.25rem !important;
+}
+
+/* Text and Label High-Contrast Visibility in Apple Mode */
+[data-theme="apple"] .text-white,
+[data-theme="apple"] .text-neutral-100 {
+  color: #FFFFFF !important;
+}
+
+[data-theme="apple"] .text-neutral-200,
+[data-theme="apple"] .text-neutral-300,
+[data-theme="apple"] .text-neutral-400 {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+[data-theme="apple"] .text-neutral-500,
+[data-theme="apple"] .text-slate-400,
+[data-theme="apple"] .text-slate-500 {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+/* Icon Colors in Apple Mode: Vibrant Apple Neon */
+[data-theme="apple"] .launcher-card .text-sky-400 { color: #38BDF8 !important; }
+[data-theme="apple"] .launcher-card .text-purple-400,
+[data-theme="apple"] .launcher-card .text-purple-300 { color: #C084FC !important; }
+[data-theme="apple"] .launcher-card .text-amber-400 { color: #FBBF24 !important; }
+[data-theme="apple"] .launcher-card .text-emerald-400 { color: #34D399 !important; }
+[data-theme="apple"] .launcher-card .text-blue-400 { color: #60A5FA !important; }
+[data-theme="apple"] .launcher-card .text-rose-400 { color: #FB7185 !important; }
+[data-theme="apple"] .launcher-card .text-cyan-400 { color: #22D3EE !important; }
+[data-theme="apple"] .launcher-card .text-violet-400 { color: #A78BFA !important; }
+[data-theme="apple"] .launcher-card .text-neutral-500 { color: rgba(255, 255, 255, 0.75) !important; }
+
+/* Dismiss Button */
+[data-theme="apple"] .drawer-dismiss-btn {
+  background-color: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: #FFFFFF !important;
+}
+[data-theme="apple"] .drawer-dismiss-btn:hover {
+  background-color: rgba(255, 255, 255, 0.28) !important;
+}
+
+[data-theme="apple"] .launcher-card .w-8.h-8,
+[data-theme="apple"] .theme-card .w-8.h-8,
+[data-theme="apple"] .theme-card .w-7.h-7,
+[data-theme="apple"] [class*="bg-"][class*="-500/20"] {
+  background-color: rgba(255, 255, 255, 0.16) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  color: #FFFFFF !important;
+  border-radius: 0.75rem !important;
+}
+
+[data-theme="apple"] button:not(.bg-spotify-green) {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  border-radius: 9999px !important;
+  color: #FFFFFF !important;
+}
+
+[data-theme="apple"] button:not(.bg-spotify-green):hover {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+[data-theme="apple"] .bg-spotify-green {
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+[data-theme="apple"] .text-spotify-green {
+  color: #38BDF8 !important;
+}
+
+
+/* -------------------------------------------------------------------------
+   3. SIMPLE RETRO RADIO (1960s BRAUN / DIETER RAMS BAKELITE & AMBER)
+   ------------------------------------------------------------------------- */
+[data-theme="retro"] .control-center-sheet {
+  background-color: #161311 !important;
+  border-color: #38322B !important;
+  color: #E8DCC8 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-theme="retro"] .launcher-card,
+[data-theme="retro"] .theme-card,
+[data-theme="retro"] [class*="from-"][class*="-950"],
+[data-theme="retro"] .bg-neutral-900,
+[data-theme="retro"] .bg-neutral-900\/80,
+[data-theme="retro"] .bg-neutral-900\/90,
+[data-theme="retro"] .bg-neutral-900\/95,
+[data-theme="retro"] .bg-surface-50,
+[data-theme="retro"] .bg-surface-100,
+[data-theme="retro"] .bg-surface-200,
+[data-theme="retro"] .bg-surface-300,
+[data-theme="retro"] .bg-black\/60,
+[data-theme="retro"] .bg-black\/80 {
+  background: #1C1814 !important;
+  border-color: #3E362C !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 6px 18px rgba(0, 0, 0, 0.6) !important;
+  border-radius: 0.625rem !important;
+  color: #E8DCC8 !important;
+}
+
+/* Dismiss Button */
+[data-theme="retro"] .drawer-dismiss-btn {
+  background-color: #2D251E !important;
+  border: 1.5px solid #D99B43 !important;
+  color: #FAF5EE !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+[data-theme="retro"] .drawer-dismiss-btn:hover {
+  background-color: #D99B43 !important;
+  color: #000000 !important;
+}
+
+[data-theme="retro"] .launcher-card .w-8.h-8,
+[data-theme="retro"] .theme-card .w-8.h-8,
+[data-theme="retro"] .theme-card .w-7.h-7,
+[data-theme="retro"] [class*="bg-"][class*="-500/20"] {
+  background-color: #28221B !important;
+  border: 1.5px solid #4D4235 !important;
+  color: #D99B43 !important;
+  border-radius: 0.375rem !important;
+}
+
+[data-theme="retro"] button:not(.bg-spotify-green) {
+  background-color: #241E19 !important;
+  border: 1.5px solid #4D4235 !important;
+  color: #E8DCC8 !important;
+  border-radius: 0.5rem !important;
+}
+
+[data-theme="retro"] button:not(.bg-spotify-green):hover {
+  background-color: #2E2620 !important;
+  border-color: #D99B43 !important;
+  color: #FAF5EE !important;
+}
+
+[data-theme="retro"] .text-white,
+[data-theme="retro"] .text-neutral-100 {
+  color: #E8DCC8 !important;
+}
+
+[data-theme="retro"] .text-neutral-400,
+[data-theme="retro"] .text-neutral-500 {
+  color: #8C7B68 !important;
+}
+
+[data-theme="retro"] .text-2xl,
+[data-theme="retro"] .text-xl {
+  color: #D99B43 !important;
+  font-family: 'Space Grotesk', monospace !important;
+}
+
+[data-theme="retro"] .bg-spotify-green {
+  background-color: #D99B43 !important;
+  color: #000000 !important;
+}
+
+[data-theme="retro"] .text-spotify-green {
+  color: #D99B43 !important;
+}
+
+
+/* -------------------------------------------------------------------------
+   4. CYBERPUNK 2077 HUD (NIGHT CITY NETRUNNER NEON CYAN, YELLOW & CHAMFERS)
+   ------------------------------------------------------------------------- */
+[data-theme="cyberpunk"] .control-center-sheet {
+  background-color: #0A0A10 !important;
+  border-color: #00F0FF !important;
+  color: #00F0FF !important;
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.3) !important;
+  will-change: transform;
+}
+
+/* Dismiss Button */
+[data-theme="cyberpunk"] .drawer-dismiss-btn {
+  background-color: #0F1420 !important;
+  border: 1.5px solid #00F0FF !important;
+  color: #00F0FF !important;
+}
+[data-theme="cyberpunk"] .drawer-dismiss-btn:hover {
+  background-color: #00F0FF !important;
+  color: #000000 !important;
+  box-shadow: 0 0 12px #00F0FF !important;
+}
+
+[data-theme="cyberpunk"] .launcher-card,
+[data-theme="cyberpunk"] .theme-card,
+[data-theme="cyberpunk"] [class*="from-"][class*="-950"],
+[data-theme="cyberpunk"] .bg-neutral-900,
+[data-theme="cyberpunk"] .bg-neutral-900\/80,
+[data-theme="cyberpunk"] .bg-neutral-900\/90,
+[data-theme="cyberpunk"] .bg-neutral-900\/95,
+[data-theme="cyberpunk"] .bg-surface-50,
+[data-theme="cyberpunk"] .bg-surface-100,
+[data-theme="cyberpunk"] .bg-surface-200,
+[data-theme="cyberpunk"] .bg-surface-300,
+[data-theme="cyberpunk"] .bg-black\/60,
+[data-theme="cyberpunk"] .bg-black\/80 {
+  background: #0C0C14 !important;
+  border-color: #00F0FF !important;
+  border-radius: 0 !important;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)) !important;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.25), inset 0 0 8px rgba(0, 240, 255, 0.08) !important;
+  color: #00F0FF !important;
+}
+
+[data-theme="cyberpunk"] .launcher-card .w-8.h-8,
+[data-theme="cyberpunk"] .theme-card .w-8.h-8,
+[data-theme="cyberpunk"] .theme-card .w-7.h-7,
+[data-theme="cyberpunk"] [class*="bg-"][class*="-500/20"] {
+  background-color: rgba(0, 240, 255, 0.14) !important;
+  border: 1px solid #00F0FF !important;
+  color: #00F0FF !important;
+  border-radius: 0 !important;
+}
+
+[data-theme="cyberpunk"] button:not(.bg-spotify-green) {
+  background-color: #0F1420 !important;
+  border: 1.5px solid #00F0FF !important;
+  color: #00F0FF !important;
+  border-radius: 0 !important;
+  font-family: 'Chakra Petch', monospace !important;
+  letter-spacing: 0.05em !important;
+}
+
+[data-theme="cyberpunk"] button:not(.bg-spotify-green):hover {
+  background-color: #00F0FF !important;
+  color: #000000 !important;
+  box-shadow: 0 0 14px #00F0FF !important;
+}
+
+[data-theme="cyberpunk"] .text-white,
+[data-theme="cyberpunk"] .text-neutral-100 {
+  color: #00F0FF !important;
+  font-family: 'Chakra Petch', monospace !important;
+}
+
+[data-theme="cyberpunk"] .text-neutral-400,
+[data-theme="cyberpunk"] .text-neutral-500 {
+  color: #5A8B9C !important;
+  font-family: 'Chakra Petch', monospace !important;
+}
+
+[data-theme="cyberpunk"] .text-2xl,
+[data-theme="cyberpunk"] .text-xl {
+  color: #FCEE0A !important;
+  font-family: 'Chakra Petch', monospace !important;
+  text-shadow: 0 0 8px rgba(252, 238, 10, 0.4) !important;
+}
+
+[data-theme="cyberpunk"] .bg-spotify-green {
+  background-color: #FCEE0A !important;
+  color: #000000 !important;
+}
+
+[data-theme="cyberpunk"] .text-spotify-green {
+  color: #FCEE0A !important;
+}
+
+/* =========================================================================
+   ANIMATIONS & KEYFRAMES
+   ========================================================================= */
+
+@keyframes sakuraFall {
+  0% { transform: translate(0, -10px) rotate(0deg); opacity: 0; }
+  20% { opacity: 0.9; }
+  80% { opacity: 0.9; }
+  100% { transform: translate(140px, 320px) rotate(360deg); opacity: 0; }
+}
+
+.animate-sakura {
+  animation: sakuraFall 8s infinite linear;
+}
+
+@keyframes steamRise {
+  0% { transform: translateY(0) scaleX(1); opacity: 0; }
+  40% { opacity: 0.75; }
+  100% { transform: translateY(-16px) scaleX(1.4); opacity: 0; }
+}
+
+.animate-steam {
+  animation: steamRise 2.4s infinite ease-out;
 }
 
 /* Touch active feedback without lag */

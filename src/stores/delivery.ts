@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 export interface CourierInfo {
   id: string;
@@ -70,9 +70,96 @@ export interface ParcelItem {
   lastCheckpoint: string;
   history: TrackingCheckpoint[];
   isLoading?: boolean;
+  createdAt?: number;
 }
 
 const STORAGE_KEY_DELIVERIES = 'arcdock_deliveries';
+
+// Helper to extract timestamp from parcel for ordering
+export const getParcelTimestamp = (p: any): number => {
+  if (p && typeof p.createdAt === 'number' && p.createdAt > 0) return p.createdAt;
+  if (p && typeof p.id === 'string') {
+    const match = p.id.match(/\d{10,}/);
+    if (match) {
+      const ts = parseInt(match[0], 10);
+      if (!isNaN(ts)) return ts;
+    }
+  }
+  return 0;
+};
+
+// Sorts parcels newest first: highest timestamp on top
+export const sortParcelsNewestFirst = (list: ParcelItem[]): ParcelItem[] => {
+  const hasTimestamps = list.some((p) => getParcelTimestamp(p) > 0);
+  if (hasTimestamps) {
+    return [...list].sort((a, b) => getParcelTimestamp(b) - getParcelTimestamp(a));
+  }
+  // Fallback: if items were in chronological order (oldest first), reverse them so newest is on top
+  return [...list].reverse();
+};
+
+// Helper to extract timestamp from an individual tracking event
+export const getEventTimestamp = (act: any): number => {
+  if (!act) return 0;
+  const raw = act.timestamp || act.date || act.time || act.statusDateTime || act.datetime || act.created_at;
+  if (!raw) return 0;
+  if (typeof raw === 'number') {
+    return raw > 1e11 ? raw : raw * 1000;
+  }
+  if (typeof raw === 'string') {
+    // Check for DD-MM-YYYY or DD/MM/YYYY formats common with Indian couriers
+    const dmyMatch = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(.*)$/);
+    if (dmyMatch) {
+      const iso = `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}${dmyMatch[4]}`;
+      const parsed = Date.parse(iso);
+      if (!isNaN(parsed)) return parsed;
+    }
+    const d = Date.parse(raw);
+    if (!isNaN(d)) return d;
+  }
+  return 0;
+};
+
+const EARLY_KEYWORDS = ['order received', 'manifest', 'booked', 'pickup scheduled', 'registered', 'created', 'label created', 'data received', 'shipment info received', 'pickup created'];
+const LATE_KEYWORDS = ['delivered', 'out for delivery', 'in transit', 'transit', 'reached', 'arrived', 'bag', 'hub', 'dispatched', 'departed', 'trip'];
+
+// Sorts checkpoint events newest first (most recent event at index 0)
+export const sortEventsNewestFirst = (events: any[]): any[] => {
+  if (!events || events.length <= 1) return events || [];
+
+  // 1. Try comparing timestamps between first and last events
+  const firstT = getEventTimestamp(events[0]);
+  const lastT = getEventTimestamp(events[events.length - 1]);
+
+  if (firstT > 0 && lastT > 0 && firstT !== lastT) {
+    if (firstT < lastT) {
+      // First is older than last -> chronological order -> reverse so newest is at index 0
+      return [...events].reverse();
+    }
+    // Already newest first
+    return events;
+  }
+
+  // 2. Fallback to status keyword classification (e.g. "Order received" vs "In transit bag added to trip")
+  const firstStatus = String(events[0]?.status || events[0]?.description || events[0] || '').toLowerCase();
+  const lastStatus = String(events[events.length - 1]?.status || events[events.length - 1]?.description || events[events.length - 1] || '').toLowerCase();
+
+  const firstIsEarly = EARLY_KEYWORDS.some((kw) => firstStatus.includes(kw));
+  const lastIsLate = LATE_KEYWORDS.some((kw) => lastStatus.includes(kw));
+
+  if (firstIsEarly || lastIsLate) {
+    return [...events].reverse();
+  }
+
+  const firstIsLate = LATE_KEYWORDS.some((kw) => firstStatus.includes(kw));
+  const lastIsEarly = EARLY_KEYWORDS.some((kw) => lastStatus.includes(kw));
+  if (firstIsLate || lastIsEarly) {
+    return events;
+  }
+
+  // Couriers typically output tracking events oldest -> newest, so reverse as safest default
+  return [...events].reverse();
+};
 
 const loadParcels = (): ParcelItem[] => {
   const raw = localStorage.getItem(STORAGE_KEY_DELIVERIES);
@@ -81,7 +168,7 @@ const loadParcels = (): ParcelItem[] => {
     const list = JSON.parse(raw);
     if (!Array.isArray(list)) return [];
     const seen = new Set<string>();
-    return list.filter((p: any) => {
+    const filtered = list.filter((p: any) => {
       if (!p || !p.id || !p.trackingNumber) return false;
       const key = p.trackingNumber.toLowerCase().trim();
       if (seen.has(key)) return false;
@@ -89,6 +176,17 @@ const loadParcels = (): ParcelItem[] => {
       p.isLoading = false;
       return true;
     });
+
+    // Ensure all loaded parcels also have their checkpoint history sorted newest first
+    const normalized = filtered.map((p: ParcelItem) => {
+      if (Array.isArray(p.history) && p.history.length > 1) {
+        p.history = sortEventsNewestFirst(p.history);
+        p.lastCheckpoint = p.history[0]?.status || p.lastCheckpoint;
+      }
+      return p;
+    });
+
+    return sortParcelsNewestFirst(normalized);
   } catch {
     return [];
   }
@@ -96,9 +194,23 @@ const loadParcels = (): ParcelItem[] => {
 
 export const useDeliveryStore = defineStore('delivery', () => {
   const parcels = ref<ParcelItem[]>(loadParcels());
+  const selectedParcelId = ref<string | null>(parcels.value[0]?.id || null);
   const carriers = ref<CourierInfo[]>(DEFAULT_COURIER_LIST);
   const isRefreshing = ref<boolean>(false);
   const carriersLoaded = ref<boolean>(false);
+
+  // Active parcel for main screen & control center: defaults to newest parcel (parcels[0])
+  const activeParcel = computed<ParcelItem | null>(() => {
+    if (selectedParcelId.value) {
+      const found = parcels.value.find((p) => p.id === selectedParcelId.value);
+      if (found) return found;
+    }
+    return parcels.value[0] || null;
+  });
+
+  const selectParcel = (id: string) => {
+    selectedParcelId.value = id;
+  };
 
   const saveParcels = () => {
     localStorage.setItem(STORAGE_KEY_DELIVERIES, JSON.stringify(parcels.value));
@@ -143,7 +255,8 @@ export const useDeliveryStore = defineStore('delivery', () => {
     // 3. Events array from ShipTrack (data.events or data.activities)
     const rawEvents = data.events || data.activities || [];
     if (Array.isArray(rawEvents) && rawEvents.length > 0) {
-      parcel.history = rawEvents.map((act: any) => {
+      const sortedEvents = sortEventsNewestFirst(rawEvents);
+      parcel.history = sortedEvents.map((act: any) => {
         if (typeof act === 'string') {
           return {
             time: 'Recent',
@@ -163,6 +276,7 @@ export const useDeliveryStore = defineStore('delivery', () => {
         };
       });
 
+      // Index 0 is now guaranteed to be the most recent checkpoint!
       parcel.lastCheckpoint = parcel.history[0]?.status || parcel.lastCheckpoint;
     } else if (data.status) {
       parcel.lastCheckpoint = `Status: ${data.status}`;
@@ -277,15 +391,19 @@ export const useDeliveryStore = defineStore('delivery', () => {
     const existingIdx = parcels.value.findIndex((p) => p.trackingNumber.toLowerCase() === cleanNum.toLowerCase());
 
     let targetParcel: ParcelItem;
+    const now = Date.now();
 
     if (existingIdx !== -1) {
       targetParcel = parcels.value[existingIdx];
       targetParcel.title = title.trim() || targetParcel.title;
       targetParcel.courier = courier.toLowerCase();
       targetParcel.isLoading = true;
+      targetParcel.createdAt = now;
+      // Move updated parcel to the front (newest)
+      parcels.value = [targetParcel, ...parcels.value.filter((_, idx) => idx !== existingIdx)];
     } else {
       targetParcel = {
-        id: `pkg-${Date.now()}`,
+        id: `pkg-${now}`,
         title: title.trim() || 'New Package',
         trackingNumber: cleanNum,
         courier: courier.toLowerCase(),
@@ -295,10 +413,13 @@ export const useDeliveryStore = defineStore('delivery', () => {
         lastCheckpoint: 'Connecting to courier network...',
         history: [], // Zero fake history
         isLoading: true,
+        createdAt: now,
       };
+      // Prepend to the top so newest is always first
       parcels.value = [targetParcel, ...parcels.value];
     }
 
+    selectedParcelId.value = targetParcel.id;
     saveParcels();
 
     // Query live tracking immediately
@@ -330,11 +451,15 @@ export const useDeliveryStore = defineStore('delivery', () => {
 
   const removeParcel = (id: string) => {
     parcels.value = parcels.value.filter((p) => p.id !== id);
+    if (selectedParcelId.value === id) {
+      selectedParcelId.value = parcels.value[0]?.id || null;
+    }
     saveParcels();
   };
 
   const clearAllParcels = () => {
     parcels.value = [];
+    selectedParcelId.value = null;
     saveParcels();
   };
 
@@ -345,6 +470,9 @@ export const useDeliveryStore = defineStore('delivery', () => {
     parcels,
     carriers,
     isRefreshing,
+    selectedParcelId,
+    activeParcel,
+    selectParcel,
     fetchCarriers,
     trackShipment,
     refreshParcels,

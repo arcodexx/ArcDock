@@ -79,7 +79,7 @@ const primaryAc = computed(() => {
 });
 
 const activeDelivery = computed(() => {
-  return deliveryStore.parcels[0] || null;
+  return deliveryStore.activeParcel;
 });
 
 const getCourierName = (id: string) => {
@@ -92,15 +92,15 @@ const getCourierName = (id: string) => {
     <!-- Backdrop overlay -->
     <div
       @click="emit('close')"
-      class="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+      class="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
     />
 
     <!-- Sliding Drawer Panel from Top -->
     <div
-      class="relative w-full max-h-[92vh] bg-neutral-950/95 border-b border-white/15 shadow-2xl p-4 sm:p-6 flex flex-col rounded-b-3xl z-10 animate-in slide-in-from-top duration-200 overflow-hidden"
+      class="control-center-sheet relative w-full max-h-[92vh] border-b shadow-2xl p-4 sm:p-6 flex flex-col rounded-b-3xl z-10 animate-in slide-in-from-top duration-200 overflow-hidden"
     >
       <!-- Top Drag Bar / Dismiss handle -->
-      <div class="flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
+      <div class="flex items-center justify-between pb-3 border-b border-white/10 shrink-0 relative z-20">
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-spotify-green animate-pulse" />
           <h2 class="text-sm sm:text-base font-extrabold text-white tracking-wide uppercase">Desk Control Center</h2>
@@ -112,7 +112,7 @@ const getCourierName = (id: string) => {
 
         <button
           @click="emit('close')"
-          class="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+          class="drawer-dismiss-btn min-h-[38px] px-3.5 py-1.5 rounded-xl border font-bold text-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shrink-0"
           title="Dismiss Drawer"
         >
           <span>Dismiss</span>
@@ -138,11 +138,11 @@ const getCourierName = (id: string) => {
       </div>
 
       <!-- 6-Card Touch Launcher Grid -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5 pt-4 overflow-y-auto no-scrollbar">
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5 pt-4 overflow-y-auto no-scrollbar overscroll-contain touch-pan-y">
         <!-- 1. Weather Card -->
         <div
           @click="emit('open-fullscreen', 'weather')"
-          class="p-3.5 rounded-2xl bg-gradient-to-br from-sky-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          class="launcher-card p-3.5 rounded-2xl bg-gradient-to-br from-sky-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
           :class="favorites.isFavorite('weather') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-sky-500/20 hover:border-sky-400/40'"
         >
           <div class="flex items-center justify-between">
@@ -182,7 +182,7 @@ const getCourierName = (id: string) => {
         <!-- 2. GitHub Activity Card -->
         <div
           @click="emit('open-fullscreen', 'github')"
-          class="p-3.5 rounded-2xl bg-gradient-to-br from-purple-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          class="launcher-card p-3.5 rounded-2xl bg-gradient-to-br from-purple-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
           :class="favorites.isFavorite('github') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-purple-500/20 hover:border-purple-400/40'"
         >
           <div class="flex items-center justify-between">
@@ -220,7 +220,7 @@ const getCourierName = (id: string) => {
         <!-- 3. Indian Parcel Tracker Card -->
         <div
           @click="emit('open-fullscreen', 'deliveries')"
-          class="p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          class="launcher-card p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
           :class="favorites.isFavorite('deliveries') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-amber-500/20 hover:border-amber-400/40'"
         >
           <div class="flex items-center justify-between">
@@ -249,9 +249,9 @@ const getCourierName = (id: string) => {
               </span>
             </div>
             <div class="text-[10px] font-semibold text-amber-300 truncate mt-0.5 flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full bg-amber-400" />
-              <span>{{ activeDelivery ? getCourierName(activeDelivery.courier) : 'All delivered' }}</span>
-              <span class="text-neutral-400">• {{ activeDelivery?.estimatedDelivery || 'Up to date' }}</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+              <span class="truncate">{{ activeDelivery?.lastCheckpoint || (activeDelivery ? getCourierName(activeDelivery.courier) : 'All delivered') }}</span>
+              <span v-if="activeDelivery?.estimatedDelivery" class="text-neutral-400 shrink-0">• {{ activeDelivery.estimatedDelivery }}</span>
             </div>
           </div>
         </div>
@@ -259,7 +259,7 @@ const getCourierName = (id: string) => {
         <!-- 4. Unified Smart Desk IoT Card -->
         <div
           @click="emit('open-fullscreen', 'smartdesk')"
-          class="p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/40 via-neutral-900 to-cyan-950/30 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          class="launcher-card p-3.5 rounded-2xl bg-gradient-to-br from-amber-950/40 via-neutral-900 to-cyan-950/30 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
           :class="favorites.isFavorite('smartdesk') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-amber-500/20 hover:border-amber-400/40'"
         >
           <div class="flex items-center justify-between">
@@ -301,7 +301,7 @@ const getCourierName = (id: string) => {
         <!-- 6. Network Latency Monitor Card -->
         <div
           @click="emit('open-fullscreen', 'network')"
-          class="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          class="launcher-card p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
           :class="favorites.isFavorite('network') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-emerald-500/20 hover:border-emerald-400/40'"
         >
           <div class="flex items-center justify-between">
@@ -350,7 +350,7 @@ const getCourierName = (id: string) => {
         <!-- 7. Daily Calendar / Agenda Card -->
         <div
           @click="emit('open-fullscreen', 'calendar')"
-          class="p-3.5 rounded-2xl bg-gradient-to-br from-blue-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          class="launcher-card p-3.5 rounded-2xl bg-gradient-to-br from-blue-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
           :class="favorites.isFavorite('calendar') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-blue-500/20 hover:border-blue-400/40'"
         >
           <div class="flex items-center justify-between">
@@ -387,7 +387,7 @@ const getCourierName = (id: string) => {
         <!-- 8. Focus Pomodoro Card -->
         <div
           @click="emit('open-fullscreen', 'pomodoro')"
-          class="p-3.5 rounded-2xl bg-gradient-to-br from-rose-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          class="launcher-card p-3.5 rounded-2xl bg-gradient-to-br from-rose-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
           :class="favorites.isFavorite('pomodoro') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-rose-500/20 hover:border-rose-400/40'"
         >
           <div class="flex items-center justify-between">
@@ -427,7 +427,7 @@ const getCourierName = (id: string) => {
         <!-- 9. Daily Habits Card -->
         <div
           @click="emit('open-fullscreen', 'habits')"
-          class="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          class="launcher-card p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
           :class="favorites.isFavorite('habits') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-emerald-500/20 hover:border-emerald-400/40'"
         >
           <div class="flex items-center justify-between">
@@ -465,7 +465,7 @@ const getCourierName = (id: string) => {
         <!-- 10. World Clock Card -->
         <div
           @click="emit('open-fullscreen', 'timezones')"
-          class="p-3.5 rounded-2xl bg-gradient-to-br from-cyan-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          class="launcher-card p-3.5 rounded-2xl bg-gradient-to-br from-cyan-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
           :class="favorites.isFavorite('timezones') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-cyan-500/20 hover:border-cyan-400/40'"
         >
           <div class="flex items-center justify-between">
@@ -505,7 +505,7 @@ const getCourierName = (id: string) => {
         <!-- 11. LAN Clipboard Card -->
         <div
           @click="emit('open-fullscreen', 'clipboard')"
-          class="p-3.5 rounded-2xl bg-gradient-to-br from-violet-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
+          class="launcher-card p-3.5 rounded-2xl bg-gradient-to-br from-violet-950/40 to-neutral-900 border transition-all flex flex-col justify-between cursor-pointer active:scale-[0.98] group relative"
           :class="favorites.isFavorite('clipboard') ? 'border-amber-400/50 shadow-md shadow-amber-950/20' : 'border-violet-500/20 hover:border-violet-400/40'"
         >
           <div class="flex items-center justify-between">

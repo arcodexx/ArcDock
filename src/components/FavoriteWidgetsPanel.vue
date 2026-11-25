@@ -92,7 +92,7 @@ const getStageNumber = (status: string) => {
 </script>
 
 <template>
-  <aside class="h-full w-full flex flex-col bg-neutral-950/95 border-l border-white/10 select-none overflow-hidden">
+  <aside class="h-full w-full flex flex-col bg-black/20 backdrop-blur-sm border-l border-white/10 select-none overflow-hidden">
     <!-- Header: Favorites Indicator + Open All Widgets + Collapse -->
     <header class="px-3 py-2 border-b border-white/5 flex items-center justify-between shrink-0 bg-black/60 gap-1.5">
       <div class="flex items-center gap-1.5">
@@ -275,8 +275,9 @@ const getStageNumber = (status: string) => {
                 <div
                   v-for="parcel in delivery.parcels"
                   :key="parcel.id"
-                  @click="emit('open-fullscreen', 'deliveries')"
-                  class="p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 transition-all cursor-pointer group space-y-2"
+                  @click="delivery.selectParcel(parcel.id); emit('open-fullscreen', 'deliveries')"
+                  class="p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border transition-all cursor-pointer group space-y-2"
+                  :class="delivery.activeParcel?.id === parcel.id ? 'border-amber-500/40 ring-1 ring-amber-500/20' : 'border-white/5'"
                 >
                   <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">

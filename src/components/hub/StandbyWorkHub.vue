@@ -48,14 +48,14 @@ const handleResume = () => {
 </script>
 
 <template>
-  <div class="h-full w-full flex flex-col justify-between p-3 sm:p-4 select-none overflow-hidden relative bg-black/60 backdrop-blur-md">
+  <div class="h-full w-full flex flex-col justify-between p-3 sm:p-4 select-none overflow-hidden relative bg-transparent">
     <!-- Top & Middle: Work & Logistics Overview -->
     <div class="flex-1 overflow-y-auto space-y-2.5 no-scrollbar">
       <!-- Section 0.5: Active Focus Session / Pomodoro -->
       <div
         v-if="pomodoro.phase !== 'idle'"
         @click="emit('openFullScreen', 'pomodoro')"
-        class="p-3 rounded-2xl border space-y-1.5 transition-all cursor-pointer hover:border-rose-400/50"
+        class="theme-card p-3 rounded-2xl border space-y-1.5 transition-all cursor-pointer hover:border-rose-400/50"
         :class="pomodoro.phase === 'focus'
           ? 'bg-rose-950/30 border-rose-500/40'
           : 'bg-emerald-950/30 border-emerald-500/40'"
@@ -100,7 +100,7 @@ const handleResume = () => {
       <!-- Section 1: Developer Activity Banner -->
       <div
         @click="emit('openFullScreen', 'github')"
-        class="p-3 rounded-2xl bg-neutral-900/90 border border-white/10 space-y-2.5 cursor-pointer hover:border-purple-500/40 transition-colors"
+        class="theme-card p-3 rounded-2xl bg-neutral-900/90 border border-white/10 space-y-2.5 cursor-pointer hover:border-purple-500/40 transition-colors"
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2.5">
@@ -142,7 +142,7 @@ const handleResume = () => {
       <div
         v-if="calendar.nextUpcomingEvent"
         @click="emit('openFullScreen', 'calendar')"
-        class="p-3 rounded-2xl bg-neutral-900/90 border border-white/10 space-y-1.5 cursor-pointer hover:border-blue-500/40 transition-colors"
+        class="theme-card p-3 rounded-2xl bg-neutral-900/90 border border-white/10 space-y-1.5 cursor-pointer hover:border-blue-500/40 transition-colors"
       >
         <div class="flex items-center justify-between text-xs">
           <div class="flex items-center gap-2 min-w-0 pr-2">
@@ -163,11 +163,22 @@ const handleResume = () => {
 
       <!-- Section 2: Active Parcel Milestone Tracker -->
       <div v-if="delivery.parcels.length > 0" class="space-y-2">
+        <div class="flex items-center justify-between px-1">
+          <div class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+            <Package class="w-3.5 h-3.5 text-amber-400" />
+            <span>Active Deliveries ({{ delivery.parcels.length }})</span>
+          </div>
+          <span v-if="delivery.parcels.length > 1" class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-300">
+            Newest First
+          </span>
+        </div>
+
         <div
           v-for="parcel in delivery.parcels"
           :key="parcel.id"
-          @click="emit('openFullScreen', 'deliveries')"
-          class="p-3 rounded-2xl bg-neutral-900/90 border border-white/10 space-y-2 cursor-pointer hover:border-amber-500/40 transition-colors"
+          @click="delivery.selectParcel(parcel.id); emit('openFullScreen', 'deliveries')"
+          class="theme-card p-3 rounded-2xl bg-neutral-900/90 border space-y-2 cursor-pointer hover:border-amber-500/40 transition-colors"
+          :class="delivery.activeParcel?.id === parcel.id ? 'border-amber-500/40 ring-1 ring-amber-500/20' : 'border-white/10'"
         >
           <div class="flex items-center justify-between gap-2">
             <div class="flex items-center gap-2 min-w-0">
@@ -178,8 +189,9 @@ const handleResume = () => {
                 <div class="text-xs font-bold text-white truncate">
                   {{ parcel.title }}
                 </div>
-                <div class="text-[10px] text-neutral-400 truncate">
-                  {{ parcel.lastCheckpoint || 'Tracking in progress...' }}
+                <div class="text-[10px] text-neutral-400 truncate flex items-center gap-1.5 mt-0.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20 shrink-0" />
+                  <span class="truncate">{{ parcel.lastCheckpoint || 'Tracking in progress...' }}</span>
                 </div>
               </div>
             </div>

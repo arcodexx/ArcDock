@@ -4,6 +4,8 @@ import { useSpotifyStore } from '@/stores/spotify';
 import { useHomeAssistantStore } from '@/stores/homeAssistant';
 import { useFavoritesStore } from '@/stores/favorites';
 import { useScreensaverStore } from '@/stores/screensaver';
+import { useThemeStore } from '@/stores/theme';
+import ThemeBackdrop from '@/components/theme/ThemeBackdrop.vue';
 import {
   X,
   ArrowLeft,
@@ -19,7 +21,9 @@ import {
   Home,
   Lock,
   Star,
-  Clock
+  Clock,
+  Palette,
+  Eye
 } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -35,6 +39,7 @@ const spotify = useSpotifyStore();
 const ha = useHomeAssistantStore();
 const favorites = useFavoritesStore();
 const screensaver = useScreensaverStore();
+const themeStore = useThemeStore();
 
 const handleTestScreensaver = () => {
   screensaver.testScreensaver();
@@ -84,10 +89,18 @@ const saveDeskPin = () => {
 </script>
 
 <template>
-  <!-- Full Screen Settings View (100% Opaque, Full Width & Height) -->
-  <div class="fixed inset-0 z-50 w-screen h-screen bg-black flex flex-col select-none overflow-hidden animate-in fade-in duration-150">
+  <!-- Full Screen Settings View -->
+  <div
+    class="fixed inset-0 z-50 w-screen h-screen flex flex-col select-none overflow-hidden animate-in fade-in duration-150 relative"
+    style="background-color: var(--dock-bg);"
+  >
+    <ThemeBackdrop />
+
     <!-- Top Navigation Header -->
-    <header class="h-14 px-4 sm:px-6 border-b border-white/10 flex items-center justify-between shrink-0 bg-neutral-950">
+    <header
+      class="h-14 px-4 sm:px-6 border-b flex items-center justify-between shrink-0 relative z-10 backdrop-blur-md transition-colors"
+      style="background-color: var(--dock-card-bg); border-color: var(--dock-border); color: var(--dock-text-primary);"
+    >
       <div class="flex items-center gap-3">
         <button
           @click="emit('close')"
@@ -112,7 +125,7 @@ const saveDeskPin = () => {
     </header>
 
     <!-- Scrollable Settings Content Area -->
-    <main class="flex-1 overflow-y-auto px-4 sm:px-8 py-5 max-w-2xl w-full mx-auto space-y-6 no-scrollbar">
+    <main class="flex-1 overflow-y-auto px-4 sm:px-8 py-5 max-w-2xl w-full mx-auto space-y-6 no-scrollbar relative z-10">
       <!-- Mode Selector -->
       <section class="space-y-2.5">
         <label class="text-xs font-bold uppercase tracking-wider text-neutral-400">Operational Profile</label>
@@ -248,6 +261,66 @@ const saveDeskPin = () => {
               {{ t.label }}
             </button>
           </div>
+        </div>
+      </section>
+
+      <!-- Visual Themes & Aesthetics -->
+      <section class="space-y-3 pt-4 border-t border-white/10">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-2">
+            <Palette class="w-4 h-4 text-pink-400" /> Visual Theme & Style
+          </label>
+          <span
+            class="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-white/10"
+            :style="{ backgroundColor: themeStore.currentThemeMeta.badgeBg, color: themeStore.currentThemeMeta.badgeText }"
+          >
+            {{ themeStore.currentThemeMeta.name }}
+          </span>
+        </div>
+
+        <p class="text-[11px] text-neutral-400">
+          Transform your desk dock into distinct artistic worlds with custom backdrops, materials, and palettes.
+        </p>
+
+        <!-- Visual Theme Cards Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <button
+            v-for="t in themeStore.themeList"
+            :key="t.id"
+            @click="themeStore.setTheme(t.id)"
+            type="button"
+            class="theme-card p-3 rounded-2xl border text-left flex items-start gap-3 transition-all cursor-pointer relative overflow-hidden"
+            :class="themeStore.currentTheme === t.id
+              ? 'bg-white/20 border-white/50 shadow-lg ring-1 ring-white/40'
+              : 'bg-neutral-900/80 border-white/5 hover:bg-neutral-800/80'"
+          >
+            <!-- Theme Emoji Box -->
+            <div
+              class="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 border border-white/10 shadow-sm"
+              :style="{ backgroundColor: t.tone === 'light' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.6)' }"
+            >
+              {{ t.emoji }}
+            </div>
+
+            <!-- Details -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-1">
+                <span class="font-bold text-xs truncate">{{ t.name }}</span>
+                <span v-if="themeStore.currentTheme === t.id" class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+              </div>
+              <div class="text-[10px] text-neutral-400 truncate mt-0.5">{{ t.tagline }}</div>
+
+              <!-- Color Swatches -->
+              <div class="flex items-center gap-1 mt-1.5">
+                <span
+                  v-for="(hex, idx) in t.swatches"
+                  :key="idx"
+                  class="w-3 h-3 rounded-full border border-white/20 shadow-xs"
+                  :style="{ backgroundColor: hex }"
+                ></span>
+              </div>
+            </div>
+          </button>
         </div>
       </section>
 

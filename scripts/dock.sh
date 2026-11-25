@@ -39,26 +39,97 @@ setup_adb() {
 
 setup_adb
 
+# Setup SSH Multiplexing (ControlMaster) to prevent multiple password prompts
+SSH_SOCKET="/tmp/arcdock-ssh-${TARGET_HOST//\//_}-${PORT}.sock"
+SSH_SHARED_OPTS=(
+  -o "ControlMaster=auto"
+  -o "ControlPath=${SSH_SOCKET}"
+  -o "ControlPersist=120s"
+  -o "ConnectTimeout=4"
+  -o "StrictHostKeyChecking=no"
+  -o "UserKnownHostsFile=/dev/null"
+  -o "LogLevel=ERROR"
+)
+
+SCP_SHARED_OPTS=(
+  -o "ControlPath=${SSH_SOCKET}"
+  -o "StrictHostKeyChecking=no"
+  -o "UserKnownHostsFile=/dev/null"
+  -o "LogLevel=ERROR"
+)
+
+cleanup_ssh() {
+  if [ -S "$SSH_SOCKET" ]; then
+    ssh -O exit -o "ControlPath=${SSH_SOCKET}" -p "$PORT" "$TARGET_HOST" 2>/dev/null || true
+    rm -f "$SSH_SOCKET" 2>/dev/null || true
+  fi
+}
+trap cleanup_ssh EXIT INT TERM
+
+# Verify target reachability before attempting transfers or operations
+verify_reachability() {
+  echo "🔍 Verifying connection to phone at ${TARGET_HOST}:${PORT}..."
+  local REACHABLE=0
+  if python3 -c "import socket; s = socket.socket(); s.settimeout(2.5); exit(0 if s.connect_ex(('${TARGET_HOST}', int('${PORT}'))) == 0 else 1)" 2>/dev/null; then
+    REACHABLE=1
+  fi
+
+  if [ "$REACHABLE" -ne 1 ]; then
+    echo ""
+    echo "===================================================================="
+    echo "❌ CANNOT CONNECT TO PHONE AT ${TARGET_HOST}:${PORT}"
+    echo "===================================================================="
+    echo "💡 The target phone is currently unreachable."
+    echo "   Common reasons:"
+    echo "   1. Phone's Wi-Fi IP address changed (DHCP router lease renewed)."
+    echo "   2. Phone Wi-Fi is disconnected or on a different network."
+    echo "   3. Termux SSH server is not running on phone."
+    echo ""
+    echo "👉 TO UPDATE THE PHONE IP ADDRESS, RUN:"
+    echo "   npm run dock:ip <NEW_PHONE_IP>"
+    echo ""
+    echo "   Example: npm run dock:ip 192.168.1.35"
+    echo ""
+    echo "👉 TO CHECK YOUR PHONE'S CURRENT IP IN TERMUX:"
+    echo "   Open Termux on phone and type:  ip addr show wlan0"
+    echo "   Make sure SSH is started:       sshd"
+    echo "===================================================================="
+    echo ""
+    exit 1
+  fi
+  echo "✅ Phone reachable at ${TARGET_HOST}:${PORT}"
+}
+
+run_ssh() {
+  ssh "${SSH_SHARED_OPTS[@]}" -p "$PORT" "$TARGET_HOST" "$@"
+}
+
+run_scp() {
+  scp "${SCP_SHARED_OPTS[@]}" -P "$PORT" "$@"
+}
+
 case "$ACTION" in
   deploy)
     echo "=========================================="
     echo "🚀 Building & Deploying ArcDock to Phone"
     echo "   Target: ${TARGET_HOST}:${PORT}"
     echo "=========================================="
-    
+
+    verify_reachability
+
     echo "📦 1. Building production web app..."
     npm run build
 
-    echo "📁 2. Ensuring remote directories on phone..."
-    ssh -o ConnectTimeout=5 -p "$PORT" "$TARGET_HOST" "mkdir -p ~/arcdock/dist"
+    echo "📁 2. Ensuring remote directories on phone (SSH multiplexed)..."
+    run_ssh "mkdir -p ~/arcdock/dist"
 
-    echo "📤 3. Transferring assets and server..."
-    scp -P "$PORT" -r dist/* "${TARGET_HOST}:~/arcdock/dist/"
-    scp -P "$PORT" scripts/arcdock_api.py "${TARGET_HOST}:~/arcdock_api.py"
-    scp -P "$PORT" scripts/restart-dock.sh "${TARGET_HOST}:~/restart-dock.sh"
+    echo "📤 3. Transferring assets and server (session reused - 0 extra passwords)..."
+    run_scp -r dist/* "${TARGET_HOST}:~/arcdock/dist/"
+    run_scp scripts/arcdock_api.py "${TARGET_HOST}:~/arcdock_api.py"
+    run_scp scripts/restart-dock.sh "${TARGET_HOST}:~/restart-dock.sh"
 
     echo "🔄 4. Restarting ArcDock server on phone..."
-    ssh -p "$PORT" "$TARGET_HOST" "bash ~/restart-dock.sh"
+    run_ssh "bash ~/restart-dock.sh"
 
     echo "📱 5. Force-refreshing phone screen (bypassing cache)..."
     if command -v adb >/dev/null 2>&1 && adb devices 2>/dev/null | grep -E "\bdevice\b" >/dev/null 2>&1; then
@@ -79,9 +150,10 @@ case "$ACTION" in
     ;;
 
   reload)
+    verify_reachability
     echo "📱 Force-reloading phone display on 127.0.0.1:3000..."
     # Ensure server is running before refreshing browser
-    ssh -o ConnectTimeout=3 -p "$PORT" "$TARGET_HOST" '
+    run_ssh '
       if ! curl -s -I http://127.0.0.1:3000 2>/dev/null | grep -E "200 OK|SimpleHTTP" >/dev/null; then
         echo "Port 3000 not responding, launching ArcDock server..."
         bash ~/restart-dock.sh
@@ -102,8 +174,9 @@ case "$ACTION" in
     ;;
 
   status)
+    verify_reachability
     echo "🔍 Checking phone services at ${TARGET_HOST}:${PORT}..."
-    ssh -p "$PORT" "$TARGET_HOST" '
+    run_ssh '
       echo "=== Active Python & HA Processes ==="
       ps aux | grep -E "arcdock_api|hass" | grep -v grep || echo "⚠️ No active processes found!"
       echo ""
@@ -123,8 +196,9 @@ case "$ACTION" in
     ;;
 
   restart)
+    verify_reachability
     echo "🔄 Restarting ArcDock and Home Assistant on phone..."
-    ssh -p "$PORT" "$TARGET_HOST" '
+    run_ssh '
       echo "1. Restarting ArcDock server..."
       bash ~/restart-dock.sh
       
@@ -144,16 +218,25 @@ case "$ACTION" in
 
   ssh)
     echo "💻 Connecting SSH to phone at ${TARGET_HOST}:${PORT}..."
-    ssh -p "$PORT" "$TARGET_HOST"
+    ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -p "$PORT" "$TARGET_HOST"
     ;;
 
   ip)
     if [ -n "$PARAM_IP" ]; then
       echo "$PARAM_IP" > "$(dirname "$0")/../.phone_ip"
-      echo "✅ Saved phone IP: $PARAM_IP (future deploy/reload will target this IP)"
+      echo "===================================================================="
+      echo "✅ Saved phone IP: $PARAM_IP"
+      echo "   Future deploy/reload/status commands will target: ${PARAM_IP}:${PORT}"
+      echo "===================================================================="
     else
-      echo "Current phone IP: ${SAVED_IP:-192.168.1.29}"
-      echo "To change: npm run dock:ip <new-ip>  (e.g. npm run dock:ip 192.168.1.35)"
+      echo "===================================================================="
+      echo "📱 Current Target Phone IP: ${SAVED_IP:-192.168.1.29}"
+      echo "   Port: ${PORT}"
+      echo "--------------------------------------------------------------------"
+      echo "👉 To change IP address, run:"
+      echo "   npm run dock:ip <NEW_IP>"
+      echo "   Example: npm run dock:ip 192.168.1.35"
+      echo "===================================================================="
     fi
     ;;
 
