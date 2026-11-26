@@ -4,6 +4,57 @@ This log tracks all architectural discussions, technical decisions, completed st
 
 ---
 
+## Log Entry: 2026-11-26 (Entry 53)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Specification Audit & Documentation Synchronization
+
+### 1. User Directives & Goals
+1. Resolve contradictions between `docs/SYSTEM_SPEC.md`, `docs/DEPLOYMENT_GUIDE.md`, and the live codebase regarding Home Assistant Core configuration, Mock mode, GitHub scraper, courier APIs, and LineageOS versioning.
+2. Ensure 100% exact parity between documentation claims and production code.
+
+### 2. Solutions Implemented
+1. **Home Assistant `configuration.yaml`:**
+   - In `SYSTEM_SPEC.md`, replaced obsolete `default_config:` reference with the clean headless core configuration (`frontend:`, `recorder:`, `climate:`, `light:`, etc.) from `scripts/setup-phone-ha.sh` that prevents Bluetooth D-Bus and Scapy filter crashes on Android.
+2. **Purged Mock Mode Documentation:**
+   - Removed all references to `isMockMode: true`, mock entity dictionaries, and the `Mock / Live` status pill from `SYSTEM_SPEC.md` to reflect the direct live WebSocket architecture.
+3. **API Alignment:**
+   - **GitHub:** In `SYSTEM_SPEC.md`, removed third-party `jogruber.de` reference; documented official GraphQL `contributionCalendar` and official GitHub REST endpoints fallback.
+   - **Deliveries:** In `SYSTEM_SPEC.md`, removed obsolete 17TRACK/Ship24 API key button; documented free ShipTrack (`shiptrack.aswincloud.com`) integration.
+   - **System Info Endpoint:** Corrected `DEPLOYMENT_GUIDE.md` Section 9.2 from `GET /api/system/info` to `GET /api/info` to match `scripts/arcdock_api.py`.
+4. **Structural & Versioning Cleanup:**
+   - Renamed duplicate `Subsystem 6` heading to `Subsystem 7: Visual Themes...`.
+   - Removed duplicate `Full-Screen Weather Station` bullet in Feature C.
+   - Updated LineageOS versioning in `SYSTEM_SPEC.md` and `IMPLEMENTATION_PLAN.md` to `LineageOS 23.2 (Android 15+)`.
+   - Updated Section 1 bundle size (~526 kB / 146 kB gzip) and charging limit (80% cap / hysteresis loop).
+
+---
+
+## Log Entry: 2026-11-26 (Entry 52)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Documentation Proofreading, PRoot/Legacy Removal & README Features Refinement
+
+### 1. User Directives & Goals
+1. **Proofread Specs & Architecture Docs:** Eliminate lingering obsolete references to PRoot, Cage Wayland, and user-space emulation containers that do not reflect the actual production deployment.
+2. **Streamline README.md Themes Section:** Replace the large 5-row table in `README.md` with a clean, concise mention.
+3. **Comprehensive Single-Line Feature Index in README:** Add a dedicated features list in `README.md` that concisely names and describes every capability in one line.
+
+### 2. Solutions Implemented
+1. **Purged Obsolete PRoot & Emulation References in `docs/SYSTEM_SPEC.md`:**
+   - Updated mission statement and hardware tables to reflect bare-metal Android (LineageOS / Stock) with Termux native Bionic Python and Fully Kiosk Browser.
+   - Replaced PRoot/udocker runtime references with native Bionic virtual environment (`~/hass`) and pre-built multiarch wheels.
+   - Removed legacy Cage Wayland / Linux kiosk snippets and centered Subsystem 4 on Fully Kiosk with native 120Hz Super AMOLED rendering and hardware brightness dimming (`window.fully.setScreenBrightness(5)`).
+   - Updated widget catalog and configurable pinned favorites limit (2, 3, or 4 widgets).
+2. **Updated `docs/IMPLEMENTATION_PLAN.md`:**
+   - Marked LineageOS flashing, native Termux setup, and Fully Kiosk milestones as completed.
+   - Clarified that PRoot was abandoned in favor of bare-metal Bionic Python to eliminate kernel Seccomp `ptrace` deadlocks.
+3. **Polished `README.md`:**
+   - Added a clean `## ✨ Features` section with 15 single-line feature summaries covering media control, IoT core, logistics, developer metrics, habit tracking, agenda radar, shared clipboard, and OLED protections.
+   - Condensed theme documentation to a single crisp summary naming the 5 curated visual worlds.
+4. **Verification:**
+   - `npm run build` (`vue-tsc && vite build`) passed with 0 errors in 1.68s.
+
+---
+
 ## Log Entry: 2026-11-25 (Entry 51)
 **Author:** Antigravity AI Assistant & Utkarsh  
 **Phase:** 12h/24h Time Display Toggle, Calendar Meeting Radar Live Ticker, Settings Input Theme Styling, and README Declutter

@@ -352,13 +352,13 @@ Client (Fully Kiosk / Laptop Browser)
    ├── GET  /clip               ──▶ Serves self-contained LAN Clipboard Web UI
    ├── GET  /api/clipboard      ──▶ Returns latest clipboard JSON payload
    ├── POST /api/clipboard      ──▶ Receives clip text from phone or laptop
-   ├── GET  /api/system/info    ──▶ Returns LAN IP & active port for QR pairing
-   └── POST /api/system/restart ──▶ Spawns background subshell to respawn server
+   ├── GET  /api/info           ──▶ Returns LAN IP & active port for QR pairing
+   └── POST /api/system/restart-server ──▶ Spawns background subshell to respawn server
 ```
 
 * **Key Advantages over darkhttpd:**
   1. **Built-in LAN Clipboard (`/clip`):** Instant bi-directional copy/paste between phone dock, MacBook, and PC over LAN without cloud synchronization.
-  2. **Device Discovery (`/api/system/info`):** Auto-detects the phone's local Wi-Fi IP and active port for pairing QR codes.
+  2. **Device Discovery (`/api/info`):** Auto-detects the phone's local Wi-Fi IP and active port for pairing QR codes.
   3. **Touchscreen Server Restart (`/api/system/restart-server`):** Allows restarting the web server directly from the touchscreen UI without opening Termux terminal.
 * **Usage:**
   ```bash

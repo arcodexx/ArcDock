@@ -82,38 +82,36 @@
 ---
 
 ## Phase 3: Hardware, OS & On-Device Kiosk Deployment
-*(Primary target: Xiaomi Redmi Note 10 Pro with LineageOS + Termux PRoot; Alternate: Nura/postmarketOS)*
+*(Primary target: Xiaomi Redmi Note 10 Pro / Any Android Device with native Termux Bionic Python)*
 
-### Step 3.0: Bootloader Unlock Authorization & Initial Proof-of-Concept (POC) — [COMPLETED / IN PROGRESS]
+### Step 3.0: Bootloader Unlock Authorization & Initial Proof-of-Concept (POC) — [COMPLETED]
 - [x] Link Mi Account and authorized phone number under MIUI Developer Options.
 - [x] Register device with Xiaomi security servers (`code: 20036`); initiated mandatory 168-hour countdown (unlock date: November 21, 2026).
-- [x] Verify on-device Home Assistant Core installation on Redmi Note 10 Pro via Termux PRoot Ubuntu 24.04 ARM64.
+- [x] Verify on-device Home Assistant Core installation on Redmi Note 10 Pro via native Termux Bionic Python environment (abandoned PRoot due to kernel Seccomp `ptrace` deadlocks).
 - [x] Identify and resolve Python/C++ voice pipeline dependency (`g++`, `pymicro-vad`, `pyspeex-noise`).
 - [x] Configure and test ADB USB port forwarding (`adb forward tcp:8022` and `tcp:8123`) to eliminate wireless power-saving drops.
 - [x] Connect real smart hardware (smart bulb) and confirm live local control.
 
-### Step 3.1: LineageOS Flashing (Target Date: Nov 21, 2026)
-- [ ] Run `miunlock` on fastboot upon completion of the 168-hour countdown timer.
-- [ ] Flash official LineageOS Recovery and LineageOS 21 (Android 14) on Redmi Note 10 Pro (`sweet`).
-- [ ] Configure LineageOS Developer Options:
+### Step 3.1: LineageOS Flashing (Target Date: Nov 21, 2026) — [COMPLETED]
+- [x] Run `miunlock` on fastboot upon completion of the 168-hour countdown timer.
+- [x] Flash official LineageOS Recovery and LineageOS 23.2 (Android 15+) on Redmi Note 10 Pro (`sweet`).
+- [x] Configure LineageOS Developer Options:
   - Toggle **"Disable child process restrictions"** to ON.
   - Toggle **"Stay awake while charging"** to ON.
   - Enable native battery **Charging limit (80%)** in `Settings → Battery`.
 
-### Step 3.2: Turnkey On-Device Home Assistant Core Setup (LineageOS)
-- [ ] Run automated setup script `scripts/setup-phone-ha.sh` in Termux.
-- [ ] Verify `Termux:Boot` daemon autostart on phone reboot.
-- [ ] Verify UFS 2.2 flash storage longevity rules (`recorder: commit_interval: 30`, exclude `media_player`).
+### Step 3.2: Turnkey On-Device Home Assistant Core Setup (LineageOS / Stock Android) — [COMPLETED]
+- [x] Run automated setup script `scripts/setup-phone-ha.sh` in Termux (bare-metal Bionic Python, zero PRoot).
+- [x] Verify `Termux:Boot` daemon autostart on phone reboot.
+- [x] Verify UFS 2.2 flash storage longevity rules (`recorder: commit_interval: 30`, exclude `media_player`).
 
-### Step 3.3: ArcDock 120Hz Kiosk Display Setup
-- [ ] Build static bundle: `npm run build` (outputs ~200 kB to `dist/`).
-- [ ] Configure **Fully Kiosk Browser** on phone:
+### Step 3.3: ArcDock 120Hz Kiosk Display Setup — [COMPLETED]
+- [x] Build static bundle: `npm run build` (outputs ~500 kB to `dist/`).
+- [x] Configure **Fully Kiosk Browser** on phone:
   - Lock orientation to Landscape.
   - Enable hardware-accelerated WebGL and native 120Hz refresh rate.
   - Connect ArcDock to on-device Home Assistant loopback (`ws://127.0.0.1:8123/api/websocket`).
-
-### Step 3.4: Alternative Pure Linux Reference (Nura / Cage Kiosk)
-- [ ] Maintain `scripts/launch-cage.sh` and `docker/docker-compose.yml` for power-users running Nura/Alpine Linux.
+  - Integrated dynamic display dimming (`setScreenBrightness(5)`) during OLED sleep.
 
 ---
 

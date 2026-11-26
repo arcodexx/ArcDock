@@ -1,6 +1,6 @@
 # ArcDock — Master System Specification & Architecture Manual
 
-> **Mission:** Repurposing the Xiaomi Redmi Note 10 Pro (*sweet*, Snapdragon 732G, 6.67" 120Hz Super AMOLED) into a dedicated, high-performance **Glass Remote** and smart dock running bare-metal Linux (postmarketOS + Cage Wayland Kiosk).
+> **Mission:** Repurposing any smartphone, tablet, or touch display (primary reference: Xiaomi Redmi Note 10 Pro, Snapdragon 732G, 6.67" 120Hz Super AMOLED) into a dedicated, high-performance ambient **Glass Remote** and smart desk dock running bare-metal on Android (LineageOS / Stock) with Termux (native Bionic Python) and Fully Kiosk Browser.
 
 ---
 
@@ -15,16 +15,16 @@ Any agent or developer working on ArcDock **must adhere to these fundamental arc
 2. **120Hz Fluidity & Zero-Lag DOM:**
    * Hardware-accelerated CSS and minimal DOM trees.
    * **Strictly avoid expensive CSS filters** like `backdrop-filter: blur(...)` across large viewports on embedded mobile GPUs (Adreno 618), as they cause compositor frame drops below 120fps.
-3. **Hardware & Battery Protection (The 60–70% Rule):**
-   * The device stays docked 24/7. To completely prevent lithium pouch swelling, thermal degradation, and battery fires, a kernel sysfs watchdog strictly enforces a **60%–70% charge hysteresis loop**.
+3. **Hardware & Battery Protection (The 80% Cap / Hysteresis Rule):**
+   * The device stays docked 24/7. To completely prevent lithium pouch swelling, thermal degradation, and battery fires, ArcDock leverages Android's native **80% charging limit** (or a 60%–70% hysteresis loop via ACC / smart plug automation).
 4. **Super AMOLED Burn-In Mitigation:**
    * AMOLED pixels degrade when displaying static elements. ArcDock includes a dual-defense system:
      * **OLED Ambient Screensaver:** Pure `#000000` true-black floating clock turns off pixels after 5 minutes of paused/idle state.
      * **Micro Pixel-Shifting:** Subtle 1–2px translate shifts every 10 minutes to protect static UI lines and button borders.
 5. **Decoupled Architecture & Monorepo Appliance:**
    * The repository is organized as a single self-contained appliance.
-   * Frontend: Pure Vite + Vue 3 static client bundle (158 kB). Zero backend Node/SSR server footprint.
-   * IoT: Home Assistant Core container runs locally on-demand (Desk Mode only).
+   * Frontend: Pure Vite + Vue 3 static client bundle (~526 kB / 146 kB gzip). Zero backend Node/SSR server footprint.
+   * IoT: Home Assistant Core daemon runs locally on-demand (Desk Mode only).
 
 ---
 
@@ -37,10 +37,9 @@ Any agent or developer working on ArcDock **must adhere to these fundamental arc
 | **GPU** | Adreno 618 with hardware-accelerated Vulkan / OpenGL ES 3.2 |
 | **RAM / Storage** | 6 GB or 8 GB LPDDR4X / 128 GB UFS 2.2 Flash |
 | **Display** | 6.67" Super AMOLED, 2400 x 1080 (20:9), 120Hz refresh rate, HDR10 |
-| **Primary OS (Recommended)** | **LineageOS 20/21 (Android 13/14)** with official hardware drivers, native 120Hz AMOLED, and stable power management |
-| **Secondary OS (Power-User)** | **Nura** (formerly postmarketOS, Alpine edge / `qcom-sm7150` kernel, Community tier with partial battery charging support) |
-| **Kiosk Display Layer** | **Fully Kiosk Browser / Webview Kiosk** (Android, native 120fps) or **Cage** (Wayland Kiosk Compositor, Linux) |
-| **On-Device Server Engine** | **Home Assistant Core** running locally on-device inside **Termux PRoot (Ubuntu)** on Android, or via **Docker** on Linux |
+| **Primary OS (Recommended)** | **LineageOS 23.2 (Android 15+)** or **Stock Android** with official hardware drivers, native 120Hz AMOLED, and stable power management |
+| **Kiosk Display Layer** | **Fully Kiosk Browser / Webview Kiosk** (Android, native 120fps) with auto-dimming sleep and ghost-click protection |
+| **On-Device Server Engine** | **Home Assistant Core** running locally on-device directly on native Android Bionic libc via Termux Python (Zero PRoot / Zero emulation) |
 
 ---
 
@@ -59,7 +58,7 @@ ArcDock features two distinct operational states toggled via the Top Bar or Sett
    • Home Wi-Fi (192.168.x.x)        • Mobile Hotspot / Portable Bluetooth
    • Spotify Remote (Mac/Speakers)   • Pure Automotive Spotify Remote
    • Home Assistant Core ACTIVE      • Home Assistant Core SUSPENDED
-     (Local on-device daemon/Docker)   (Reclaims ~500MB-1GB RAM, 0% CPU)
+     (Local on-device Termux daemon)   (Reclaims ~500MB-1GB RAM, 0% CPU)
    • Always-on Ambient UI            • Large glanceable controls only
    • Dual-State Split Grid           • SplitPane locked to 100% Left Pane
    • Wall USB-C Power (60-80%)       • 12V Car Charger / Battery
@@ -170,29 +169,39 @@ ArcDock in **Car Mode** serves as a handy passenger remote. Anyone in the car ca
 #### Architectural Specification (On-Device Local Server)
 ArcDock is designed as an all-in-one appliance: Home Assistant Core runs locally on the phone itself, eliminating any server requirements on your Mac or external hardware.
 
-* **Primary Runtime (Android / LineageOS):**
-  * **Engine:** Home Assistant Core inside **Termux PRoot (Ubuntu 24.04 ARM64)**.
-  * **Execution:** Runs in an isolated Python 3 virtual environment (`~/hass-venv`) with pre-compiled ARM64 Debian/Ubuntu wheels (avoiding native compilation issues on mobile).
+* **Primary Runtime (Android / LineageOS / Stock Android):**
+  * **Engine:** Home Assistant Core running **bare-metal on native Android Bionic libc via Termux** (abandoned PRoot/udocker completely to eliminate `ptrace(PTRACE_GETEVENTMSG)` kernel Seccomp deadlocks).
+  * **Execution:** Runs in an isolated virtual environment (`~/hass`) using native Termux Bionic-compiled packages (`python-cryptography`, `python-bcrypt`, `build-essential`, `uv`) and pre-built multiarch wheels installed via `scripts/setup-phone-ha.sh`.
   * **Service Address:** `http://127.0.0.1:8123` with loopback WebSocket at `ws://127.0.0.1:8123/api/websocket`.
-  * **C++ Compiler & Pipeline Dependencies:** Home Assistant's WebSocket API handler (`handle_get_services`) internally imports `assist_pipeline` during initial service catalog registration. This requires `g++` to compile `pymicro-vad` and `pyspeex-noise`. Pre-compiling these wheels ensures the WebSocket API loads immediately without hanging.
-  * **Cloud & Webhook Integrations:** Cloud-connected smart devices (e.g. Samsung SmartThings for AC control) strictly require `default_config:` in `configuration.yaml` to enable `webhook:`, `zeroconf:`, and `ssdp:` discovery services.
+  * **C++ Compiler & Pipeline Dependencies:** Pre-compiled wheels for voice pipeline and cryptography dependencies bypass compilation halts on mobile.
+  * **Lean Headless Core (No D-Bus Crashes):** To prevent Bluetooth D-Bus and Scapy packet sniffer daemons from crashing on non-rooted Android, `default_config:` is explicitly avoided in favor of an explicit component list in `configuration.yaml`.
   * **Lifecycle & Stability Guards:**
-    * **Phantom Process Killer Mitigation:** On Android 14 (LineageOS 21), toggle **Settings → Developer Options → "Disable child process restrictions"** to ON.
+    * **Phantom Process Killer Mitigation:** On Android 12–15, toggle **Settings → Developer Options → "Disable child process restrictions"** to ON.
     * **CPU Wake Lock:** `termux-wake-lock` prevents Android from idling the server CPU.
     * **Auto-Start on Boot:** Managed via `Termux:Boot` script in `~/.termux/boot/start-hass.sh`.
-* **Secondary Runtime (Linux / Nura):**
-  * **Container:** `ghcr.io/home-assistant/home-assistant:stable` running via Docker (`docker/docker-compose.yml`) with host networking.
-* **Flash Storage Protection (UFS 2.2 Longevity):**
-  * Home Assistant's default SQLite configuration writes events continuously. To protect the phone's flash storage against write cycle exhaustion, `configuration.yaml` configures the recorder:
+* **Flash Storage Protection (UFS 2.2 Longevity) & Clean Headless Core:**
+  * Home Assistant's default SQLite configuration writes events continuously. To protect the phone's flash storage against write cycle exhaustion, `configuration.yaml` configures the recorder and essential domains:
     ```yaml
-    default_config:
-
+    # ArcDock Clean Core Configuration (Headless / Zero D-Bus / Flash Safe)
+    frontend:
+    history:
+    logbook:
     recorder:
       commit_interval: 30 # Batch writes every 30 seconds instead of real-time disk thrashing
       purge_keep_days: 3  # Retain only 3 days of historical data
       exclude:
         domains:
           - media_player   # Prevent Spotify playback ticks from filling the database
+          - camera
+
+    sun:
+    sensor:
+    switch:
+    light:
+    climate:
+    automation: !include automations.yaml
+    script: !include scripts.yaml
+    scene: !include scenes.yaml
 
     http:
       cors_allowed_origins:
@@ -201,56 +210,32 @@ ArcDock is designed as an all-in-one appliance: Home Assistant Core runs locally
         - http://127.0.0.1:8123
         - http://localhost:8123
     ```
-* **Frontend Communication & Zero-Host Mock Engine (`useHomeAssistantStore`):**
+* **Frontend Communication via WebSocket (`useHomeAssistantStore`):**
   * Protocol: WebSocket (`ws://127.0.0.1:8123/api/websocket` or network URL).
   * Library: `home-assistant-js-websocket`.
-  * **Safe Mock Engine:** Defaults to `isMockMode: true`, supplying realistic reactive desk entities (`light.desk_lamp`, `light.screen_bar`, `light.ambient_strip`, `switch.desk_fan`, `scene.focus`, `scene.relax`, `scene.night`) with 0ms local state updates, requiring zero backend services or system packages on development machines.
-  * Live Mode: Supports user-configured Long-Lived Access Tokens and automatic WebSocket reconnection.
+  * Live Reactive State: Real-time subscription to `HassEntities` with automatic reconnects and token persistence in `localStorage`.
 * **On-Demand Lifecycle Controller:**
-  * In **Desk Mode**: Starts the Home Assistant process or container.
+  * In **Desk Mode**: Home Assistant process is active on port 8123.
   * In **Car Mode**: Suspends the Home Assistant service, reclaiming ~500 MB–1 GB RAM, eliminating SQLite writes, and conserving 100% background CPU.
 * **UI Architecture (Split-Grid on Landscape Display):**
   * `SplitPane.vue`: High-performance touch-draggable splitter (35%–72% width limits, persistent ratio in `localStorage`) with 1-tap chevron collapse and a discreet 20px edge reopen tab with buffer padding (`pr-8 sm:pr-10`) to keep Spotify controls unobstructed.
   * `MediaBar.vue`: Bounded inside the media pane so Spotify controls (Device Switcher, Sync, Search, Playlists, Queue) never bleed above the IoT surface.
-  * `DeskIoTPanel.vue`: Compact landscape toolbar with status pill (`Mock` / `Live`), compact scenes icon dropdown (`Sparkles`), dedicated All-Off button (`Power`), and unified square tile grid (`LightCard.vue`, `SwitchCard.vue`).
+  * `DeskIoTPanel.vue`: Compact landscape toolbar with connection status indicator, compact scenes icon dropdown (`Sparkles`), dedicated All-Off button (`Power`), and unified square tile grid (`LightCard.vue`, `SwitchCard.vue`).
   * `LightCard.vue`: Single-toggle square tile with solid opaque thumb-friendly brightness modal (100% opaque, 44px slider track, quick preset chips).
   * `TopBar.vue`: Slimmed to `h-11` with icon-only mode button and plain-language confirmation modal teleported directly to `document.body` (`<Teleport to="body">`, `z-[100]`) to ensure the middle dragger line never overlaps it.
-  * `SettingsModal.vue`: Dedicated Full-Screen View (`fixed inset-0 w-screen h-screen bg-black`) with native mobile top bar and comfortable vertical scrolling.
+  * `SettingsModal.vue`: Dedicated Full-Screen View (`fixed inset-0 w-screen h-screen`) with native mobile top bar and comfortable vertical scrolling.
 
 ---
 
 ### Subsystem 4: Hardware Health & Kiosk Deployment (Phase 3)
 
 #### 1. 24/7 Battery Protection (Hysteresis & Charging Limits)
-* **On LineageOS / Android (Recommended):**
-  * **Method A (Built-in):** LineageOS includes a native **Charging Control / Limit** setting in `Settings → Battery` to cap charging at **80%**.
-  * **Method B (Rooted / ACC):** Install **Advanced Charging Controller (ACC)** via Termux. ACC auto-probes the Redmi Note 10 Pro charging driver (LN8000 or BQ chip) and enforces a strict **60%–70% charge hysteresis loop**.
-* **On Linux / Nura:**
-  * Uses `scripts/battery-guardian.sh` via `/sys/class/power_supply/battery/charging_enabled` on a 60-second systemd timer.
+* **Built-in OS Protection:** LineageOS and modern Android ROMs include a native **Charging Control / Limit** setting in `Settings → Battery` to cap charging at **80%**, preventing lithium pouch expansion.
+* **Root / ACC Hysteresis:** For rooted devices, **Advanced Charging Controller (ACC)** via Termux auto-probes the device charging driver (LN8000/BQ chip) and enforces a strict **60%–70% charge hysteresis loop**.
 
-#### 2. Kiosk Display Launcher
-* **On Android (Recommended):**
-  * Runs via **Fully Kiosk Browser** or an Android WebView kiosk.
-  * Configuration: Fullscreen mode, WebGL hardware acceleration ON, screen stay awake while on USB power ON, overscroll effects disabled. Delivers native **120Hz Super AMOLED** performance.
-* **On Linux / Nura:**
-  * Runs via **Cage** Wayland compositor with Chromium flags (`scripts/launch-cage.sh`).
-```bash
-#!/bin/sh
-# Launch ArcDock frontend in Cage Wayland compositor with Adreno GPU acceleration
-exec cage -d -s -- chromium-browser \
-  --kiosk \
-  --ozone-platform=wayland \
-  --enable-features=UseOzonePlatform \
-  --enable-gpu-rasterization \
-  --enable-zero-copy \
-  --ignore-gpu-blocklist \
-  --disable-pinch \
-  --overscroll-history-navigation=0 \
-  --noerrdialogs \
-  --disable-infobars \
-  --check-for-update-interval=31536000 \
-  http://127.0.0.1:3000
-```
+#### 2. Kiosk Display Launcher (Fully Kiosk Browser)
+* **Configuration:** Fullscreen kiosk mode, WebGL hardware acceleration ON, screen stay awake on USB power ON, overscroll effects disabled. Delivers native **120Hz Super AMOLED** performance.
+* **Dynamic Hardware Dimming:** ArcDock integrates directly with Fully Kiosk's JavaScript interface (`window.fully.setScreenBrightness(5)`) during OLED sleep, dropping display power draw and eliminating heat while docked on charge. Original day brightness is restored automatically upon wake.
 
 #### 3. Development & Tethering Bridge (ADB Port Forwarding)
 To bypass aggressive OEM wireless power-saving sleep (such as MIUI's Wi-Fi packet throttling during display dimming), the development workstation communicates with the phone via USB cable using ADB port forwarding:
@@ -315,30 +300,34 @@ ArcDock resolves this with a **Dual-State Dynamic Canvas** and a **Top-Down Cont
 ```
 
 #### 2. The Pinned Favorite Widgets System (`useFavoritesStore`)
-* **Core Rule:** Users can pin **up to 2 favorite widgets** (`climate`, `lights`, `github`, `deliveries`, `weather`, `network`) to feature on the right pane while Spotify is actively playing.
-* **Storage & Limit Enforcement:** Persisted in `localStorage['arcdock_favorite_widgets']` (default: `['climate', 'lights']`). Enforces a strict ceiling of 2 favorites; attempting to mark a 3rd displays an alert: *"Maximum 2 favorites reached. Unmark one first!"*.
+* **Core Rule:** Users can pin their favorite widgets (`smartdesk`, `github`, `deliveries`, `weather`, `network`, `calendar`, `pomodoro`, `habits`, `timezones`, `clipboard`) to feature on the right pane while Spotify is actively playing.
+* **Configurable Widget Limit:** Persisted in `localStorage['arcdock_max_favorites']` (selectable in Settings: 2 for Phones, 3 for Wide screens, 4 for Tablets). Enforces the user-chosen ceiling, preventing excessive vertical stacking on compact mobile screens.
 * **Easy In-Context Pinning:**
-  - In `FullScreenView.vue`: Header features a prominent `[ ⭐ Favorite (X/2) ]` toggle button.
+  - In `FullScreenView.vue`: Header features a prominent `[ ⭐ Favorite (X/N) ]` toggle button.
   - In `ControlCenterDrawer.vue`: Every widget card features a star pin icon in the corner.
 * **Zero Duplication on Standby:** When Spotify is paused, the right pane strictly renders Smart Desk environment controls (`DeskIoTPanel.vue`), complementing the left pane's work hub (`StandbyWorkHub.vue`) without any overlapping or duplicate cards.
 
 #### 3. The Top-to-Down "Desk Control Center" Drawer
-* **The Gesture:** Swiping down from anywhere on the Top Bar (or tapping a discreet central pull pill `━`) slides down a full-width pitch-black AMOLED drawer (`z-[90]`).
-* **The Launcher Grid:** Displays a 6-card glanceable grid with star favorite toggles:
+* **The Gesture:** Swiping down from anywhere on the Top Bar (or tapping the discreet central pull pill `━`) slides down a full-width pitch-black AMOLED drawer (`z-[90]`).
+* **The Launcher Grid:** Displays the complete glanceable widget launcher grid with star favorite toggles and in-context full-screen expansions:
   1. `[ 🌦️ Weather Station ]`
-  2. `[ 🐙 GitHub Activity & PRs ]`
+  2. `[ 🐙 GitHub Activity Hub ]`
   3. `[ 📦 Indian Parcel Tracker ]`
-  4. `[ ❄️ SmartThings Climate AC ]`
-  5. `[ 💡 All Lights & Scenes ]`
-  6. `[ 📶 Network Latency Monitor ]`
-* **Full-Screen View Pattern (`z-[100]`):** Tapping any card in the Control Center expands into a dedicated, unconstrained full-screen view (`fixed inset-0 w-screen h-screen bg-black`). Features a native mobile top bar (Back chevron `←`, Title, `[ ⭐ Favorite (X/2) ]`, and Close `×`).
+  4. `[ ❄️ Smart Desk IoT (Climate & Lights) ]`
+  5. `[ 📶 Network Latency Monitor ]`
+  6. `[ 📅 Daily Agenda & Meeting Radar ]`
+  7. `[ ⏱️ Focus Pomodoro Timer ]`
+  8. `[ ✅ Daily Habits Tracker ]`
+  9. `[ 🌍 World Clock & Timezones ]`
+  10. `[ 📋 LAN Shared Clipboard ]`
+* **Full-Screen View Pattern (`z-[100]`):** Tapping any card in the Control Center expands into a dedicated, unconstrained full-screen view (`fixed inset-0 w-screen h-screen`). Features a native mobile top bar (Back chevron `←`, Title, `[ ⭐ Favorite (X/N) ]`, and Close `×`).
 
 #### 4. Contextual In-Widget Settings Architecture
 Rather than cramming API keys and city searches into a distant centralized settings modal, each widget directly manages its own configuration in context inside its Full-Screen view:
 * **Weather Station (`WeatherView.vue`):** Features a `[ ⚙️ Location ]` button in the header. Houses live Open-Meteo city search (Enter/Search triggers), matching locations list with coordinates, and GPS auto-location toggle. Selecting a city reloads the forecast on screen instantly.
 * **GitHub Activity Hub (`GitHubView.vue`):** Features a `[ ⚙️ Account Credentials ]` button in the header to update username and personal access token with instant sync.
-* **Domestic Courier Tracker (`DeliveryView.vue`):** Features a `[ ⚙️ Carrier API ]` button in the header alongside `[ + Track Package ]` to configure optional live tracking API keys (17TRACK/Ship24).
-* **Main Settings (`SettingsModal.vue`):** Freed up completely from widget clutter to focus strictly on system and hardware setup (Desk/Car profile, Lock PIN, Spotify PKCE, and Home Assistant Core connection).
+* **Domestic Courier Tracker (`DeliveryView.vue`):** Features `[ + Track Package ]` alongside free multi-carrier live shipment tracking (zero API keys required via ShipTrack).
+* **Main Settings (`SettingsModal.vue`):** Freed up completely from widget clutter to focus strictly on system and hardware setup (Desk/Car profile, Lock PIN, 12h/24h toggle, Spotify PKCE, and Home Assistant Core connection).
 
 #### 5. Feature Specifications
 
@@ -370,7 +359,6 @@ Rather than cramming API keys and city searches into a distant centralized setti
 * **Components:**
   * **Glanceable Header Pill:** Temp + weather icon (`28°C ⛅`) next to digital clock.
   * **Full-Screen Weather Station:** Displays current condition, feels-like temperature, humidity %, wind speed, 24-hour horizontal hourly curve, and 7-day Min/Max forecast, with contextual `[ ⚙️ Location ]` search drawer.
-  * **Full-Screen Weather Station:** Displays current condition, feels-like temperature, humidity %, wind speed, 24-hour horizontal hourly curve, and 7-day Min/Max forecast.
 
 ##### Feature D: Network Latency Monitor (`PingMonitor.vue`)
 * **Objective:** Visual early warning for network instability 5–10 seconds before video calls freeze or streams drop.
@@ -385,7 +373,7 @@ Rather than cramming API keys and city searches into a distant centralized setti
 * **Architecture & Authentication:**
   * **Dual-Mode Precision Engine:**
     * **Authenticated Mode (Token provided):** Directly queries official GitHub GraphQL `contributionCalendar` (`viewer { contributionsCollection { contributionCalendar { ... } } }`) ensuring 100% exact parity with github.com profile.
-    * **Public Unauthenticated Mode (Username only):** Uses the public `https://github-contributions-api.jogruber.de/v4/{username}` endpoint to retrieve exact historical daily contribution counts.
+    * **Public Unauthenticated Mode (Username only):** Uses official GitHub REST endpoints (`/users/{username}/events`, `/users/{username}/repos`, and `/search/issues`) with client-side event timestamp aggregation, bypassing third-party scrapers entirely.
   * **Key Metrics:**
     * **Daily Contribution Streak:** Visual 14-day interactive contribution heatmap with exact day names, tooltips, and calculated active streak (`🔥 X days`).
     * **Today's Commit Counter:** Number of commits pushed today across repositories.
@@ -520,7 +508,7 @@ Rather than cramming API keys and city searches into a distant centralized setti
 
 ---
 
-### Subsystem 6: Visual Themes, Mobile OS Hardening & Deployment Multiplexing (Phase 6)
+### Subsystem 7: Visual Themes, Mobile OS Hardening & Deployment Multiplexing (Phase 6)
 
 #### 1. Curated Visual Worlds Engine (`theme.ts` & `ThemeBackdrop.vue`)
 * **Dynamic Material Themes:** Beyond basic dark mode, ArcDock includes 5 curated visual themes:
