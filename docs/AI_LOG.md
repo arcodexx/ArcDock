@@ -4,6 +4,58 @@ This log tracks all architectural discussions, technical decisions, completed st
 
 ---
 
+## Log Entry: 2026-11-27 (Entry 54)
+**Author:** Antigravity AI Assistant & Utkarsh  
+**Phase:** Isolated Interactive Web Demo, In-Memory Sandbox, GitHub Pages Deployment & First-Load Hardening
+
+### 1. User Directives & Goals
+1. **Interactive Demo Showcase:** Create an isolated web demo page (`/demo/` and `demo.html`) so prospective users can experience ArcDock's 120Hz look, themes, screensaver, and glanceable widgets in their browser before flashing Android or setting up Home Assistant.
+2. **Device Chassis & Generic Mocks:** Implement Option A (landscape 20:9 phone mockup chassis with ambient desk glow and 1-click fullscreen mode) with universally relatable mock data.
+3. **Strict Isolation & Production Shielding:** Ensure the demo is 100% sandboxed so that it never pollutes the real app's `localStorage` or runs live auth requests on the main page (`/`).
+4. **Dedicated GitHub Pages Deployment:** Host **only the demo showcase** on GitHub Pages (omitting the unconfigured production app kiosk from the published bundle) via automated GitHub Actions.
+5. **Security & Form Hiding:** Hide all credential/token input forms in demo mode across all modals and views (SettingsModal, HASettingsModal, GitHubView, CalendarView, DeliveryView).
+6. **First-Load Hardening & Theme Sync:** Fix first-load hanging caused by unmocked network pings to 1.1.1.1 and redundant font requests, and guarantee instant theme synchronization across the showcase iframe boundary.
+
+### 2. Solutions Implemented
+1. **Multi-Page Vite Architecture:**
+   - Updated `vite.config.ts` to build multi-page inputs: `main` (`index.html`), `demo` (`demo.html`), `demo-dir` (`demo/index.html`), and `demo-dock` (`demo-dock.html`).
+   - Added `/demo` redirect middleware and updated `scripts/arcdock_api.py` for `/demo` static routing.
+2. **In-Memory Storage Sandbox (`src/demo/demoStorage.ts` & `demoInit.ts`):**
+   - Intercepted `Storage.prototype` within the demo iframe realm using two separate in-memory dictionaries (`localMemory` and `sessionMemory`).
+   - Created `src/demo/demoInit.ts` to establish `(window).__ARCDOCK_IS_DEMO__ = true`, activate in-memory storage, and install the mock engine *before* any Pinia store module is imported.
+   - Added cleanup in `src/main.ts` to automatically purge any residual demo keys left in the browser's persistent `localStorage`.
+3. **Universal Mock Engine (`src/demo/mockData.ts`):**
+   - Intercepts `api.spotify.com`, GitHub (GraphQL & REST fallback), `/api/calendar/feed` (.ics), `/api/clipboard`, `/api/info`, `/api/carriers`, `/api/track/*`, `1.1.1.1`, and `open-meteo.com`.
+   - Replaced external Unsplash image URLs with a local high-contrast SVG avatar data URI to prevent external network latency.
+   - Strictly blocks any unmocked external requests to Spotify or Home Assistant from escaping the demo sandbox.
+4. **Form Hiding Across Widgets:**
+   - In `HASettingsModal.vue`: Completely hid LAN Access/QR code and Core URL/Token inputs, replacing them with a simulated IoT status card.
+   - In `SettingsModal.vue`: Replaced Spotify Client ID/Redirect URI configuration and Desk Mode Lock PIN input with a simulated status card.
+   - In `GitHubView.vue`, `CalendarView.vue`, and `DeliveryView.vue`: Replaced account/source/package configuration triggers with demo status badges and guarded drawers with `!isDemo`.
+5. **First-Load Hardening, Performance & Theme Sync:**
+   - **Network Ping:** Added `isDemoMode()` check in `src/stores/network.ts` to immediately resolve simulated 18ms latency without dispatching network calls, and added a 3-second `AbortController` timeout for production.
+   - **Font Loading Optimization:** Removed blocking `@import url(...)` from `src/style.css` to prevent chained external font round-trips from stalling stylesheet parsing.
+   - **Artwork Palette Extraction:** Enhanced `src/utils/colorExtractor.ts` to instantly return pre-calculated palettes for SVG data URIs, bypassing canvas/ColorThief processing and adding a 600ms safety timeout.
+   - **Weather Cold-Start:** Pre-seeded `arcdock_weather_cache` in `src/demo/mockData.ts` so `weatherStore` starts with valid cached data without triggering cold-start geocoding or API calls.
+   - **Favicon Resolution:** Added an inline SVG data URI favicon (`⚡`) to all HTML entry points and bundled a fallback `favicon.ico`, eliminating 404 stalls.
+   - **Iframe Theme Sync & PostMessage:** Added `@load="onIframeLoad"` in `DemoApp.vue` to push the active theme immediately upon load, and updated `dock.ts` to reliably accept messages from the parent origin even in partitioned/incognito browsing contexts.
+   - **Canonical Subresource URLs:** Hardened `dockSrc` in `DemoApp.vue` to dynamically compute canonical absolute URLs, preventing relative-path 404s when accessed without trailing slashes.
+6. **GitHub Pages Deployment Workflow (`.github/workflows/deploy-demo.yml` & `scripts/prepare-demo-dist.js`):**
+   - Built a multi-job GitHub Actions pipeline (`build` and `deploy` jobs with `needs: build`) using `actions/configure-pages@v5` and `actions/deploy-pages@v4` with explicit `pages: write` and `id-token: write` permissions.
+   - Separating into distinct `build` and `deploy` jobs ensures the `upload-pages-artifact` bundle is fully indexed by GitHub's API before `deploy-pages` attempts retrieval, resolving the "Found 0 artifact(s)" lookup error.
+   - Packages `dist-demo/` with `demo.html` as the root `index.html`.
+   - Omitted the production `index.html` kiosk from deployment, ensuring visitors to `https://<username>.github.io/ArcDock/` land directly on the interactive demo showcase.
+   - Added `npm run build:demo` script and ignored `dist-demo` in `.gitignore`.
+7. **Documentation Updates:**
+   - Updated `README.md` with a clean top badge and a concise 3-line live demo callout.
+   - Updated `docs/DEPLOYMENT_GUIDE.md` with Section 11 (GitHub Pages hosting guide).
+   - Updated `docs/SYSTEM_SPEC.md` with Section 4 (Isolated Demo Showcase & Mock Engine).
+
+### 3. Verification
+- `npm run build` and `npm run build:demo` pass cleanly with zero TypeScript errors and zero Vite warnings.
+
+---
+
 ## Log Entry: 2026-11-26 (Entry 53)
 **Author:** Antigravity AI Assistant & Utkarsh  
 **Phase:** Specification Audit & Documentation Synchronization

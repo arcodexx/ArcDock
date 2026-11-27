@@ -10,10 +10,101 @@ import {
   ERR_INVALID_AUTH,
 } from 'home-assistant-js-websocket';
 import type { HassEntities, ConnectionStatus, RoomSyncConfig } from '@/types/homeAssistant';
+import { isDemoMode } from '@/composables/useDemo';
 
 const STORAGE_KEY_URL = 'arcdock_ha_url';
 const STORAGE_KEY_TOKEN = 'arcdock_ha_token';
 const STORAGE_KEY_ROOM_SYNC = 'arcdock_ha_room_sync';
+
+export const DEFAULT_MOCK_ENTITIES: HassEntities = {
+  'climate.bedroom_ac': {
+    entity_id: 'climate.bedroom_ac',
+    state: 'cool',
+    attributes: {
+      friendly_name: 'Smart Desk AC',
+      current_temperature: 24,
+      temperature: 23,
+      hvac_modes: ['cool', 'fan_only', 'dry', 'off'],
+      fan_modes: ['auto', 'low', 'medium', 'high'],
+      fan_mode: 'medium',
+      hvac_action: 'cooling',
+      min_temp: 16,
+      max_temp: 30,
+      target_temp_step: 0.5,
+    },
+    last_changed: new Date().toISOString(),
+    last_updated: new Date().toISOString(),
+  },
+  'light.desk_lamp': {
+    entity_id: 'light.desk_lamp',
+    state: 'on',
+    attributes: {
+      friendly_name: 'Desk Task Lamp',
+      brightness: 215,
+      supported_color_modes: ['brightness', 'color_temp'],
+    },
+    last_changed: new Date().toISOString(),
+    last_updated: new Date().toISOString(),
+  },
+  'light.screen_bar': {
+    entity_id: 'light.screen_bar',
+    state: 'on',
+    attributes: {
+      friendly_name: 'Monitor Light Bar',
+      brightness: 180,
+      supported_color_modes: ['brightness'],
+    },
+    last_changed: new Date().toISOString(),
+    last_updated: new Date().toISOString(),
+  },
+  'light.ambient_strip': {
+    entity_id: 'light.ambient_strip',
+    state: 'on',
+    attributes: {
+      friendly_name: 'Ambient LED Strip',
+      brightness: 140,
+      supported_color_modes: ['rgb', 'brightness'],
+    },
+    last_changed: new Date().toISOString(),
+    last_updated: new Date().toISOString(),
+  },
+  'switch.desk_fan': {
+    entity_id: 'switch.desk_fan',
+    state: 'off',
+    attributes: {
+      friendly_name: 'Desk Fan',
+    },
+    last_changed: new Date().toISOString(),
+    last_updated: new Date().toISOString(),
+  },
+  'scene.focus': {
+    entity_id: 'scene.focus',
+    state: 'scening',
+    attributes: {
+      friendly_name: 'Focus',
+    },
+    last_changed: new Date().toISOString(),
+    last_updated: new Date().toISOString(),
+  },
+  'scene.relax': {
+    entity_id: 'scene.relax',
+    state: 'scening',
+    attributes: {
+      friendly_name: 'Relax & Warm',
+    },
+    last_changed: new Date().toISOString(),
+    last_updated: new Date().toISOString(),
+  },
+  'scene.night': {
+    entity_id: 'scene.night',
+    state: 'scening',
+    attributes: {
+      friendly_name: 'Night Mode',
+    },
+    last_changed: new Date().toISOString(),
+    last_updated: new Date().toISOString(),
+  },
+};
 
 const loadRoomSyncConfig = (): RoomSyncConfig => {
   const raw = localStorage.getItem(STORAGE_KEY_ROOM_SYNC);
@@ -37,11 +128,17 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
   const haUrl = ref<string>(localStorage.getItem(STORAGE_KEY_URL) || 'http://127.0.0.1:8123');
   const haToken = ref<string>(localStorage.getItem(STORAGE_KEY_TOKEN) || '');
 
-  const connectionStatus = ref<ConnectionStatus>('disconnected');
+  const isMockMode = ref<boolean>(isDemoMode());
+
+  const connectionStatus = ref<ConnectionStatus>(
+    isMockMode.value ? 'connected' : 'disconnected'
+  );
   const errorMessage = ref<string | null>(null);
   const activeSceneId = ref<string | null>(null);
 
-  const entities = ref<HassEntities>({});
+  const entities = ref<HassEntities>(
+    isMockMode.value ? JSON.parse(JSON.stringify(DEFAULT_MOCK_ENTITIES)) : {}
+  );
 
   let connection: Connection | null = null;
   let unsubscribeEntities: (() => void) | null = null;
@@ -89,6 +186,15 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
   };
 
   const connect = async () => {
+    if (isMockMode.value) {
+      connectionStatus.value = 'connected';
+      errorMessage.value = null;
+      if (Object.keys(entities.value).length === 0) {
+        entities.value = JSON.parse(JSON.stringify(DEFAULT_MOCK_ENTITIES));
+      }
+      return;
+    }
+
     if (!haUrl.value || !haToken.value) {
       connectionStatus.value = 'disconnected';
       errorMessage.value = 'Missing Home Assistant URL or Long-Lived Access Token.';
@@ -136,11 +242,20 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
       connection.close();
       connection = null;
     }
-    connectionStatus.value = 'disconnected';
+    if (!isMockMode.value) {
+      connectionStatus.value = 'disconnected';
+    }
   };
 
   // Light actions
   const toggleLight = async (entityId: string) => {
+    if (isMockMode.value) {
+      const e = entities.value[entityId];
+      if (e) {
+        e.state = e.state === 'on' ? 'off' : 'on';
+      }
+      return;
+    }
     if (connection) {
       try {
         await callService(connection, 'light', 'toggle', { entity_id: entityId });
@@ -151,10 +266,19 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
   };
 
   const setBrightness = async (entityId: string, percent: number) => {
-    if (connection) {
-      const clampedPercent = Math.max(0, Math.min(100, percent));
-      const rawBrightness = Math.round((clampedPercent / 100) * 255);
+    const clampedPercent = Math.max(0, Math.min(100, percent));
+    const rawBrightness = Math.round((clampedPercent / 100) * 255);
 
+    if (isMockMode.value) {
+      const e = entities.value[entityId];
+      if (e) {
+        e.attributes.brightness = rawBrightness;
+        e.state = rawBrightness === 0 ? 'off' : 'on';
+      }
+      return;
+    }
+
+    if (connection) {
       try {
         if (rawBrightness === 0) {
           await callService(connection, 'light', 'turn_off', { entity_id: entityId });
@@ -172,6 +296,14 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
 
   // Switch actions
   const toggleSwitch = async (entityId: string) => {
+    if (isMockMode.value) {
+      const e = entities.value[entityId];
+      if (e) {
+        e.state = e.state === 'on' ? 'off' : 'on';
+      }
+      return;
+    }
+
     if (connection) {
       try {
         await callService(connection, 'switch', 'toggle', { entity_id: entityId });
@@ -189,6 +321,42 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
         activeSceneId.value = null;
       }
     }, 1200);
+
+    if (isMockMode.value) {
+      if (sceneId === 'scene.all_off') {
+        Object.values(entities.value).forEach((e) => {
+          if (e.entity_id.startsWith('light.') || e.entity_id.startsWith('switch.')) {
+            e.state = 'off';
+          }
+        });
+      } else if (sceneId === 'scene.focus') {
+        if (entities.value['light.desk_lamp']) {
+          entities.value['light.desk_lamp'].state = 'on';
+          entities.value['light.desk_lamp'].attributes.brightness = 255;
+        }
+        if (entities.value['light.screen_bar']) {
+          entities.value['light.screen_bar'].state = 'on';
+          entities.value['light.screen_bar'].attributes.brightness = 230;
+        }
+        if (entities.value['climate.bedroom_ac']) {
+          entities.value['climate.bedroom_ac'].attributes.temperature = 22;
+        }
+      } else if (sceneId === 'scene.relax') {
+        if (entities.value['light.desk_lamp']) entities.value['light.desk_lamp'].state = 'off';
+        if (entities.value['light.ambient_strip']) {
+          entities.value['light.ambient_strip'].state = 'on';
+          entities.value['light.ambient_strip'].attributes.brightness = 120;
+        }
+      } else if (sceneId === 'scene.night') {
+        Object.values(entities.value).forEach((e) => {
+          if (e.entity_id.startsWith('light.')) e.state = 'off';
+        });
+        if (entities.value['climate.bedroom_ac']) {
+          entities.value['climate.bedroom_ac'].attributes.temperature = 24;
+        }
+      }
+      return;
+    }
 
     if (connection) {
       try {
@@ -210,6 +378,11 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
     const rounded = Math.round(temperature / step) * step;
     const clampedTemp = Math.max(minTemp, Math.min(maxTemp, Number(rounded.toFixed(1))));
 
+    if (isMockMode.value) {
+      entity.attributes.temperature = clampedTemp;
+      return;
+    }
+
     if (connection) {
       try {
         await callService(connection, 'climate', 'set_temperature', {
@@ -223,6 +396,14 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
   };
 
   const setHvacMode = async (entityId: string, hvacMode: string) => {
+    if (isMockMode.value) {
+      const e = entities.value[entityId];
+      if (e) {
+        e.state = hvacMode;
+      }
+      return;
+    }
+
     if (connection) {
       try {
         await callService(connection, 'climate', 'set_hvac_mode', {
@@ -236,6 +417,14 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
   };
 
   const setFanMode = async (entityId: string, fanMode: string) => {
+    if (isMockMode.value) {
+      const e = entities.value[entityId];
+      if (e) {
+        e.attributes.fan_mode = fanMode;
+      }
+      return;
+    }
+
     if (connection) {
       try {
         await callService(connection, 'climate', 'set_fan_mode', {
@@ -285,6 +474,7 @@ export const useHomeAssistantStore = defineStore('homeAssistant', () => {
   return {
     haUrl,
     haToken,
+    isMockMode,
     connectionStatus,
     errorMessage,
     activeSceneId,

@@ -46,6 +46,14 @@ function setupBridgeMiddleware(middlewares: any) {
       }
     }
 
+    // Direct /demo URL redirect
+    if (req.url === '/demo') {
+      res.statusCode = 302;
+      res.setHeader('Location', '/demo/');
+      res.end();
+      return;
+    }
+
     // System restart endpoint mock
     if (req.url === '/api/system/restart-server' && req.method === 'POST') {
       res.setHeader('Content-Type', 'application/json');
@@ -195,6 +203,7 @@ function setupBridgeMiddleware(middlewares: any) {
 }
 
 export default defineConfig({
+  base: './',
   plugins: [
     vue(),
     {
@@ -216,5 +225,15 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 3000,
     strictPort: true,
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        demo: path.resolve(__dirname, 'demo.html'),
+        'demo-dir': path.resolve(__dirname, 'demo/index.html'),
+        'demo-dock': path.resolve(__dirname, 'demo-dock.html'),
+      },
+    },
   },
 })

@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useHomeAssistantStore } from '@/stores/homeAssistant';
 import { useDeviceInfoStore } from '@/stores/deviceInfo';
+import { useDemo } from '@/composables/useDemo';
 import QRCodeModal from '@/components/common/QRCodeModal.vue';
 import {
   X,
@@ -30,6 +31,7 @@ const emit = defineEmits<{
 
 const ha = useHomeAssistantStore();
 const deviceInfo = useDeviceInfoStore();
+const { isDemo } = useDemo();
 
 const localHaUrl = ref(ha.haUrl);
 const localHaToken = ref(ha.haToken);
@@ -175,112 +177,131 @@ onUnmounted(() => {
 
           <!-- Modal Body (Scrollable) -->
           <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 custom-scrollbar">
-            <!-- 1. LAN Access & QR Code Section -->
-            <section class="p-3.5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 space-y-2.5">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div class="space-y-0.5">
-                  <div class="text-xs font-bold text-white flex items-center gap-2">
-                    <Wifi class="w-4 h-4 text-amber-400" />
-                    <span>LAN Direct Access</span>
-                  </div>
-                  <p class="text-[11px] text-neutral-300">
-                    Open Home Assistant Web UI on your laptop or phone on the same Wi-Fi.
-                  </p>
-                </div>
-
+            <!-- In Demo Mode: Hide LAN access & Core credentials form, show clean sandbox card -->
+            <section v-if="isDemo" class="p-4 rounded-2xl bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent border border-amber-500/30 space-y-2.5">
+              <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                  <button
-                    @click="showQrModal = true"
-                    class="flex items-center gap-1.5 min-h-[38px] px-3.5 py-2 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/30 text-xs font-semibold tracking-wide transition-all active:scale-95 cursor-pointer shadow-sm"
-                  >
-                    <QrCode class="w-3.5 h-3.5" />
-                    <span>Scan QR</span>
-                  </button>
+                  <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                  <span class="text-xs font-bold text-amber-300 uppercase tracking-wider">Simulated Smart Desk IoT</span>
                 </div>
+                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  Mock Active
+                </span>
               </div>
-
-              <!-- URL Bar -->
-              <div class="flex items-center gap-2 p-1.5 rounded-xl bg-neutral-950 border border-neutral-800">
-                <div class="flex-1 min-w-0 px-2 font-mono text-xs text-amber-300 font-semibold truncate select-all">
-                  {{ haLanUrl }}
-                </div>
-                <button
-                  @click="copyLanUrl"
-                  class="shrink-0 flex items-center gap-1.5 min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 cursor-pointer shadow-sm"
-                  :class="copiedUrl
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                    : 'bg-white/10 hover:bg-white/20 text-white border border-white/10'"
-                >
-                  <Check v-if="copiedUrl" class="w-3.5 h-3.5" />
-                  <Copy v-else class="w-3.5 h-3.5" />
-                  <span>{{ copiedUrl ? 'Copied' : 'Copy' }}</span>
-                </button>
-                <a
-                  :href="haLanUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="shrink-0 w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
-                  title="Open in new tab"
-                >
-                  <ExternalLink class="w-4 h-4" />
-                </a>
-              </div>
+              <p class="text-xs text-neutral-300 leading-relaxed">
+                Home Assistant is running in local simulation with interactive desk lights, color bars, climate HVAC controls, and scenes. Real URL and Long-Lived Access Token configuration forms are completely hidden in this web preview.
+              </p>
             </section>
 
-            <!-- 2. HA Server Connection Credentials -->
-            <section class="space-y-3 p-3.5 rounded-2xl bg-neutral-900/80 border border-white/5">
-              <div class="text-xs font-bold text-white uppercase tracking-wider text-neutral-400">
-                Core Connection
-              </div>
-              <div class="space-y-1">
-                <label class="text-xs text-neutral-400 font-medium flex items-center gap-1.5">
-                  <Server class="w-3.5 h-3.5 text-amber-400" />
-                  <span>Home Assistant URL (Local Core)</span>
-                </label>
-                <input
-                  v-model="localHaUrl"
-                  type="text"
-                  placeholder="http://127.0.0.1:8123"
-                  class="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-2 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-amber-400 font-mono transition-colors"
-                />
-              </div>
+            <!-- In Production Mode: LAN Access & Core Connection Form -->
+            <template v-else>
+              <!-- 1. LAN Access & QR Code Section -->
+              <section class="p-3.5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 space-y-2.5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div class="space-y-0.5">
+                    <div class="text-xs font-bold text-white flex items-center gap-2">
+                      <Wifi class="w-4 h-4 text-amber-400" />
+                      <span>LAN Direct Access</span>
+                    </div>
+                    <p class="text-[11px] text-neutral-300">
+                      Open Home Assistant Web UI on your laptop or phone on the same Wi-Fi.
+                    </p>
+                  </div>
 
-              <div class="space-y-1">
-                <label class="text-xs text-neutral-400 font-medium flex items-center justify-between">
-                  <span class="flex items-center gap-1.5">
-                    <Lock class="w-3.5 h-3.5 text-amber-400" />
-                    <span>Long-Lived Access Token</span>
+                  <div class="flex items-center gap-2">
+                    <button
+                      @click="showQrModal = true"
+                      class="flex items-center gap-1.5 min-h-[38px] px-3.5 py-2 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 border border-amber-400/30 text-xs font-semibold tracking-wide transition-all active:scale-95 cursor-pointer shadow-sm"
+                    >
+                      <QrCode class="w-3.5 h-3.5" />
+                      <span>Scan QR</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- URL Bar -->
+                <div class="flex items-center gap-2 p-1.5 rounded-xl bg-neutral-950 border border-neutral-800">
+                  <div class="flex-1 min-w-0 px-2 font-mono text-xs text-amber-300 font-semibold truncate select-all">
+                    {{ haLanUrl }}
+                  </div>
+                  <button
+                    @click="copyLanUrl"
+                    class="shrink-0 flex items-center gap-1.5 min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 cursor-pointer shadow-sm"
+                    :class="copiedUrl
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : 'bg-white/10 hover:bg-white/20 text-white border border-white/10'"
+                  >
+                    <Check v-if="copiedUrl" class="w-3.5 h-3.5" />
+                    <Copy v-else class="w-3.5 h-3.5" />
+                    <span>{{ copiedUrl ? 'Copied' : 'Copy' }}</span>
+                  </button>
+                  <a
+                    :href="haLanUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="shrink-0 w-9 h-9 min-w-[36px] min-h-[36px] flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors"
+                    title="Open in new tab"
+                  >
+                    <ExternalLink class="w-4 h-4" />
+                  </a>
+                </div>
+              </section>
+
+              <!-- 2. HA Server Connection Credentials -->
+              <section class="space-y-3 p-3.5 rounded-2xl bg-neutral-900/80 border border-white/5">
+                <div class="text-xs font-bold text-white uppercase tracking-wider text-neutral-400">
+                  Core Connection
+                </div>
+                <div class="space-y-1">
+                  <label class="text-xs text-neutral-400 font-medium flex items-center gap-1.5">
+                    <Server class="w-3.5 h-3.5 text-amber-400" />
+                    <span>Home Assistant URL (Local Core)</span>
+                  </label>
+                  <input
+                    v-model="localHaUrl"
+                    type="text"
+                    placeholder="http://127.0.0.1:8123"
+                    class="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-2 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-amber-400 font-mono transition-colors"
+                  />
+                </div>
+
+                <div class="space-y-1">
+                  <label class="text-xs text-neutral-400 font-medium flex items-center justify-between">
+                    <span class="flex items-center gap-1.5">
+                      <Lock class="w-3.5 h-3.5 text-amber-400" />
+                      <span>Long-Lived Access Token</span>
+                    </span>
+                    <button
+                      @click="showToken = !showToken"
+                      class="text-[11px] text-neutral-500 hover:text-neutral-300 flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <component :is="showToken ? EyeOff : Eye" class="w-3.5 h-3.5" />
+                      <span>{{ showToken ? 'Hide' : 'Reveal' }}</span>
+                    </button>
+                  </label>
+                  <input
+                    v-model="localHaToken"
+                    :type="showToken ? 'text' : 'password'"
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    class="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-2 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-amber-400 font-mono transition-colors"
+                  />
+                </div>
+
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                  <span class="text-[11px] text-neutral-500">
+                    Generate token in Home Assistant: Profile → Long-Lived Access Tokens.
                   </span>
                   <button
-                    @click="showToken = !showToken"
-                    class="text-[11px] text-neutral-500 hover:text-neutral-300 flex items-center gap-1 transition-colors cursor-pointer"
+                    @click="handleSaveHaConfig"
+                    class="min-h-[42px] px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs tracking-wide active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-amber-400/20"
                   >
-                    <component :is="showToken ? EyeOff : Eye" class="w-3.5 h-3.5" />
-                    <span>{{ showToken ? 'Hide' : 'Reveal' }}</span>
+                    <Check v-if="isSaved" class="w-4 h-4" />
+                    <RefreshCw v-else-if="ha.connectionStatus === 'connecting'" class="w-4 h-4 animate-spin" />
+                    <span>{{ isSaved ? 'Saved & Reconnecting...' : 'Save & Connect' }}</span>
                   </button>
-                </label>
-                <input
-                  v-model="localHaToken"
-                  :type="showToken ? 'text' : 'password'"
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  class="w-full bg-neutral-900 border border-white/10 rounded-xl px-4 py-2 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-amber-400 font-mono transition-colors"
-                />
-              </div>
-
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-                <span class="text-[11px] text-neutral-500">
-                  Generate token in Home Assistant: Profile → Long-Lived Access Tokens.
-                </span>
-                <button
-                  @click="handleSaveHaConfig"
-                  class="min-h-[42px] px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs tracking-wide active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-amber-400/20"
-                >
-                  <Check v-if="isSaved" class="w-4 h-4" />
-                  <RefreshCw v-else-if="ha.connectionStatus === 'connecting'" class="w-4 h-4 animate-spin" />
-                  <span>{{ isSaved ? 'Saved & Reconnecting...' : 'Save & Connect' }}</span>
-                </button>
-              </div>
-            </section>
+                </div>
+              </section>
+            </template>
 
             <!-- 4. Room Immersion: Dynamic Album Art Light Sync -->
             <section class="p-4 rounded-2xl bg-neutral-900/80 border border-white/5 space-y-3">

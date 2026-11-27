@@ -551,6 +551,15 @@ ArcDock balances live glanceability with API rate limits and battery conservatio
   * Staggered retries run at **5s** and **15s** after boot.
   * Attaches a `window.addEventListener('online', ...)` listener that immediately triggers a full data fetch the millisecond Wi-Fi connects.
 
+#### 6. Isolated Demo Showcase & In-Memory Sandbox Subsystem
+
+To let prospective users experience the feel, 120Hz widgets, and themes before setting up hardware:
+* **In-Memory Storage Sandbox (`demoStorage.ts`):** Overrides `Storage.prototype` within the demo iframe. All reads and writes to `localStorage` and `sessionStorage` occur in-memory (`localMemory` and `sessionMemory` Maps) and never touch the host browser's persistent disk storage, guaranteeing 100% isolation from the main production app at `/`.
+* **Universal Mock Engine (`mockData.ts`):** Intercepts `fetch()` for Spotify Web API, GitHub (GraphQL & REST), Calendar (.ics), Courier tracking, and Clipboard APIs, responding with simulated data and high-contrast SVG album artwork.
+* **Iframe Confinement:** Sandboxed with `sandbox="allow-scripts allow-same-origin allow-forms"`, disallowing top-level window navigation and unrequested popups.
+* **PostMessage Origin Validation:** Cross-frame communication between the showcase chassis and dock iframe enforces bidirectional `window.location.origin` and `event.source` checks.
+* **Automated GitHub Pages Deployment (`.github/workflows/deploy-demo.yml`):** Publishes `dist-demo/` with `demo.html` as the root `index.html`, omitting the production app so visitors immediately experience the demo.
+
 ---
 
 ## 5. Security & Privacy

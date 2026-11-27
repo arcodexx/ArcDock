@@ -100,7 +100,15 @@ onUnmounted(() => {
         <span class="text-xs font-bold text-white tracking-wide">Smart Desk</span>
         <button
           @click="isSettingsOpen = true"
-          v-if="ha.connectionStatus === 'connected'"
+          v-if="ha.isMockMode"
+          class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-400/15 text-amber-300 border border-amber-400/25 shrink-0 hover:bg-amber-400/25 transition-colors cursor-pointer"
+          title="Home Assistant Simulated Mock Mode"
+        >
+          Mock
+        </button>
+        <button
+          @click="isSettingsOpen = true"
+          v-else-if="ha.connectionStatus === 'connected'"
           class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-400/15 text-emerald-300 border border-emerald-400/25 shrink-0 hover:bg-emerald-400/25 transition-colors cursor-pointer"
           title="Home Assistant Connected"
         >

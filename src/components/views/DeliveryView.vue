@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useDeliveryStore, type CourierInfo } from '@/stores/delivery';
+import { useDemo } from '@/composables/useDemo';
 import {
   Plus,
   Trash2,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-vue-next';
 
 const deliveryStore = useDeliveryStore();
+const { isDemo } = useDemo();
 
 const showAddModal = ref(false);
 const isAdding = ref(false);
@@ -75,7 +77,16 @@ const getCourierName = (id: string) => {
           <span>{{ deliveryStore.isRefreshing ? 'Syncing...' : 'Sync Live' }}</span>
         </button>
 
+        <div
+          v-if="isDemo"
+          class="px-4 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 font-bold text-xs flex items-center gap-1.5"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+          <span>Sample Deliveries</span>
+        </div>
+
         <button
+          v-else
           @click="showAddModal = true"
           class="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs tracking-wide active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-400/20"
         >
@@ -86,7 +97,7 @@ const getCourierName = (id: string) => {
     </div>
 
     <!-- Add Package Modal / Drawer -->
-    <div v-if="showAddModal" class="p-5 rounded-3xl bg-neutral-900 border border-amber-500/40 space-y-4 animate-in fade-in duration-100">
+    <div v-if="!isDemo && showAddModal" class="p-5 rounded-3xl bg-neutral-900 border border-amber-500/40 space-y-4 animate-in fade-in duration-100">
       <div class="flex items-center justify-between">
         <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
           <Package class="w-4 h-4 text-amber-400" />
@@ -252,6 +263,7 @@ const getCourierName = (id: string) => {
             </span>
 
             <button
+              v-if="!isDemo"
               @click="deliveryStore.removeParcel(parcel.id)"
               class="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all cursor-pointer"
               title="Delete Tracking"

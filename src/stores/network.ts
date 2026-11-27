@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+import { isDemoMode } from '@/composables/useDemo';
 
 export type PingStatus = 'stable' | 'elevated' | 'critical';
 
@@ -12,6 +13,16 @@ export const useNetworkStore = defineStore('network', () => {
   let intervalId: number | null = null;
 
   const checkPing = async () => {
+    // In demo mode: instantly resolve simulated latency to prevent network blocking
+    if (isDemoMode()) {
+      isOnline.value = true;
+      pingMs.value = 18;
+      status.value = 'stable';
+      history.value.push(18);
+      if (history.value.length > 20) history.value.shift();
+      return;
+    }
+
     if (!navigator.onLine) {
       isOnline.value = false;
       status.value = 'critical';
@@ -23,11 +34,16 @@ export const useNetworkStore = defineStore('network', () => {
     const start = performance.now();
 
     try {
-      // Lightweight fetch with cache busting to 1.1.1.1
+      // Lightweight fetch with cache busting to 1.1.1.1 with 3-second timeout protection
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
       await fetch(`https://1.1.1.1/cdn-cgi/trace?_t=${Date.now()}`, {
         mode: 'no-cors',
         cache: 'no-store',
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const duration = Math.round(performance.now() - start);
       pingMs.value = duration;
 

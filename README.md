@@ -2,6 +2,8 @@
 
 > **Turn any spare smartphone, tablet, or touch display into a dedicated Smart Desk Dock & Vehicle Touch Dashboard.**
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Try_ArcDock_Online-10B981?style=for-the-badge&logo=google-chrome&logoColor=white)](https://arcodexx.github.io/ArcDock/)
+
 [![Vue 3](https://img.shields.io/badge/Vue-3.x-42b883?style=flat-square&logo=vuedotjs)](https://vuejs.org/)
 [![Vite](https://img.shields.io/badge/Vite-5.x-646CFF?style=flat-square&logo=vite)](https://vitejs.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
@@ -60,6 +62,14 @@ Old smartphones and tablets often end up forgotten in drawers despite having gre
 
 ---
 
+## 🎮 Live Web Demo
+
+Try ArcDock directly in your browser with interactive widgets, visual themes, and simulated desk IoT:
+
+👉 **[Launch ArcDock Interactive Demo](https://arcodexx.github.io/ArcDock/)**
+
+---
+
 ## 🚀 Quick Start
 
 ArcDock runs on almost any Android phone or tablet. It works on regular stock Android right out of the box—no rooting, bootloader unlocking, or custom ROMs required.
@@ -103,6 +113,13 @@ git clone https://github.com/arcodexx/ArcDock.git
 cd ArcDock
 npm install
 npm run dev
+```
+
+Visit **`http://localhost:3000`** for the full application or **`http://localhost:3000/demo/`** to test the interactive demo showcase locally.
+
+To build the demo-only bundle for GitHub Pages:
+```bash
+npm run build:demo
 ```
 
 ### Spotify Developer Setup

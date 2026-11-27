@@ -112,6 +112,23 @@ class ArcDockRequestHandler(SimpleHTTPRequestHandler):
                     self.wfile.write(content)
                 return
 
+        # /demo interactive showcase route
+        if path in ('/demo', '/demo/'):
+            demo_file = os.path.join(DIST_DIR, 'demo.html')
+            if not os.path.isfile(demo_file):
+                demo_file = os.path.join(SCRIPT_DIR, '../demo.html')
+
+            if os.path.isfile(demo_file):
+                with open(demo_file, 'rb') as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', str(len(content)))
+                self.end_headers()
+                if self.command != 'HEAD':
+                    self.wfile.write(content)
+                return
+
         # /api/info: Auto-detected IP and endpoints
         if path == '/api/info':
             lan_ip = get_lan_ip()

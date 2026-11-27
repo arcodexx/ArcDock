@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useCalendarStore } from '@/stores/calendar';
+import { useDemo } from '@/composables/useDemo';
 import { Calendar, Video, Clock, RefreshCw, Settings, X, AlertCircle } from 'lucide-vue-next';
 
 defineEmits<{
@@ -8,6 +9,7 @@ defineEmits<{
 }>();
 
 const calendar = useCalendarStore();
+const { isDemo } = useDemo();
 
 const showSettingsDrawer = ref(false);
 const inputUrl = ref(calendar.feedUrl);
@@ -45,7 +47,16 @@ onMounted(() => {
           <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': calendar.isLoading }" />
         </button>
 
+        <div
+          v-if="isDemo"
+          class="flex items-center gap-1.5 min-h-[40px] px-3 py-2 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-300 text-xs font-semibold"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+          <span>Demo Schedule</span>
+        </div>
+
         <button
+          v-else
           @click="showSettingsDrawer = true"
           class="flex items-center gap-1.5 min-h-[40px] px-3.5 py-2 rounded-xl border text-xs font-semibold tracking-wide transition-colors cursor-pointer shadow-sm active:scale-95"
           :class="showSettingsDrawer
@@ -148,7 +159,7 @@ onMounted(() => {
 
     <!-- Settings Drawer Modal -->
     <div
-      v-if="showSettingsDrawer"
+      v-if="!isDemo && showSettingsDrawer"
       class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
     >
       <div class="bg-neutral-900 border border-neutral-800 rounded-3xl p-5 max-w-md w-full space-y-4">

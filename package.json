@@ -14,6 +14,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
+    "build:demo": "vue-tsc && vite build && node scripts/prepare-demo-dist.js",
     "preview": "vite preview",
     "deploy": "bash scripts/dock.sh deploy",
     "dock:reload": "bash scripts/dock.sh reload",

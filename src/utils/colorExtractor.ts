@@ -29,7 +29,31 @@ export async function extractArtworkColors(imageUrl: string): Promise<DominantCo
     return colorCache.get(imageUrl)!;
   }
 
+  // Pre-calculated palette for demo SVG album art or data URIs (instant, no canvas/CORS latency)
+  if (imageUrl.startsWith('data:')) {
+    const demoPalette: DominantColors = {
+      primary: [121, 40, 202],
+      secondary: [67, 56, 202],
+      accent: [16, 185, 129],
+      gradientCss: 'radial-gradient(circle at 25% 40%, rgba(85, 28, 141, 0.55) 0%, rgba(34, 28, 101, 0.3) 55%, #000000 95%)',
+    };
+    colorCache.set(imageUrl, demoPalette);
+    return demoPalette;
+  }
+
   return new Promise((resolve) => {
+    let hasResolved = false;
+    const safeResolve = (colors: DominantColors) => {
+      if (hasResolved) return;
+      hasResolved = true;
+      clearTimeout(timer);
+      resolve(colors);
+    };
+
+    const timer = setTimeout(() => {
+      safeResolve(DEFAULT_COLORS);
+    }, 600);
+
     const img = new Image();
     img.crossOrigin = 'Anonymous';
     img.src = imageUrl;
@@ -65,11 +89,11 @@ export async function extractArtworkColors(imageUrl: string): Promise<DominantCo
         }
         colorCache.set(imageUrl, result);
 
-        resolve(result);
+        safeResolve(result);
       } catch (err) {
         console.warn('[ColorExtractor] ColorThief failed or CORS issue, fallback to default', err);
         colorCache.set(imageUrl, DEFAULT_COLORS);
-        resolve(DEFAULT_COLORS);
+        safeResolve(DEFAULT_COLORS);
       } finally {
         img.src = ''; // Cleanly release image resource from memory
       }
@@ -78,7 +102,7 @@ export async function extractArtworkColors(imageUrl: string): Promise<DominantCo
     img.onerror = () => {
       img.src = '';
       colorCache.set(imageUrl, DEFAULT_COLORS);
-      resolve(DEFAULT_COLORS);
+      safeResolve(DEFAULT_COLORS);
     };
   });
 }

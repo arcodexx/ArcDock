@@ -447,3 +447,30 @@ def handle_restart_server(self):
   - Added post-boot warm-up retries in `TopBar.vue` at **5 seconds** and **15 seconds** after mount.
   - Added `window.addEventListener('online', ...)` to trigger an immediate full sync the exact instant Wi-Fi connects.
   - Added in-store fallback retries (10s) in `calendar.ts` and `github.ts` if initial load fails on empty stores.
+
+---
+
+## 11. Hosting the Web Demo on GitHub Pages
+
+ArcDock includes an automated GitHub Actions deployment workflow (`.github/workflows/deploy-demo.yml`) configured to publish **strictly the isolated web demo showcase** to GitHub Pages:
+
+### 11.1 How It Works
+1. On every push to `main`, GitHub Actions triggers the deployment pipeline.
+2. It compiles the project (`npm run build`) and creates a standalone `dist-demo/` directory via `node scripts/prepare-demo-dist.js`.
+3. In `dist-demo/`, the interactive demo showcase (`demo.html`) is published as the root `index.html`. The production app kiosk (`index.html`) is omitted completely.
+4. When visitors navigate to `https://<username>.github.io/ArcDock/`, they land directly on the phone chassis demo with realistic mock data and zero setup requirements.
+
+### 11.2 Enabling GitHub Pages
+1. On GitHub, navigate to your repository **Settings → Pages**.
+2. Under **Build and deployment → Source**, select **GitHub Actions**.
+3. Push to `main` (or run **Actions → Deploy Demo to GitHub Pages → Run workflow**).
+
+### 11.3 Local Demo Testing
+```bash
+# Test the demo showcase in your local dev server
+npm run dev
+# Visit http://localhost:3000/demo/
+
+# Build and verify the demo bundle locally
+npm run build:demo
+```

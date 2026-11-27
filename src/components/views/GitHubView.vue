@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useGitHubStore } from '@/stores/github';
+import { useDemo } from '@/composables/useDemo';
 import {
   Github,
   GitPullRequest,
@@ -21,6 +22,7 @@ import {
 } from 'lucide-vue-next';
 
 const githubStore = useGitHubStore();
+const { isDemo } = useDemo();
 
 const showConfig = ref(false);
 const localUser = ref(githubStore.username);
@@ -104,7 +106,16 @@ const getIntensityClass = (count: number) => {
           <span class="hidden sm:inline">Sync Live</span>
         </button>
 
+        <div
+          v-if="isDemo"
+          class="px-3.5 py-2.5 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-300 text-xs font-bold flex items-center gap-1.5"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+          <span>Demo Activity</span>
+        </div>
+
         <button
+          v-else
           @click="showConfig = !showConfig"
           class="px-3.5 py-2.5 rounded-xl border transition-all text-xs font-bold flex items-center gap-1.5 cursor-pointer"
           :class="showConfig ? 'bg-purple-500/25 border-purple-400 text-purple-300' : 'bg-white/5 hover:bg-white/10 border-white/10 text-neutral-300 hover:text-white'"
@@ -117,7 +128,7 @@ const getIntensityClass = (count: number) => {
     </div>
 
     <!-- Configure Account Drawer -->
-    <div v-if="showConfig" class="p-5 rounded-3xl bg-neutral-900 border border-purple-500/40 space-y-3 animate-in fade-in duration-100">
+    <div v-if="!isDemo && showConfig" class="p-5 rounded-3xl bg-neutral-900 border border-purple-500/40 space-y-3 animate-in fade-in duration-100">
       <div class="flex items-center justify-between">
         <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
           <Github class="w-4 h-4 text-purple-400" />
